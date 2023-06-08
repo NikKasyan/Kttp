@@ -1,6 +1,7 @@
 package kttp
 
 import kttp.http.HttpServer
+import kttp.net.IOStream
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -49,7 +50,6 @@ class HttpServerConnectionTest {
     @Test
     fun startHttpServer_thenStopServer_acceptNoSockets() {
         startHttpServer()
-        Thread.sleep(500)
         this.httpServer.stop()
         assertThrows<ConnectException> { createSocket() }
     }
@@ -69,19 +69,21 @@ class HttpServerConnectionTest {
     @Test
     fun connectWithClient_ThenDisconnect_Server_shouldNotFail() {
         startHttpServer()
-        createSocket().close()
+        val socket = createSocket()
+        val io = IOStream(socket)
+        io.close()
         Thread.sleep(500)
-        assertEquals(0, httpServer.currentNumberOfConnections)
+        assertEquals(0, httpServer.activeConnections)
 
     }
 
     @Test
     fun connectWith21Client_LastClientShouldNotConnect() {
         startHttpServer()
-        for (i in 0..20)
-            thread { createSocket() }
+        for (i in 0..30)
+            createSocket()
         Thread.sleep(500)
-        assertEquals(20, httpServer.currentNumberOfConnections)
+        assertEquals(20, httpServer.activeConnections)
 
     }
 
@@ -90,10 +92,12 @@ class HttpServerConnectionTest {
         httpServer.stop()
     }
 
-    private fun startHttpServer() =
+    private fun startHttpServer() {
         thread {
             httpServer.start()
         }
+        Thread.sleep(500)
+    }
 
 
     private fun createSocket(): Socket {

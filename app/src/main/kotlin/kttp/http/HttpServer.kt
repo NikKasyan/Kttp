@@ -1,10 +1,11 @@
 package kttp.http
 
+import kttp.net.IOStream
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
 
 class HttpServer(private val port: Int, private val maxConcurrentConnections: Int = 20) {
 
@@ -13,15 +14,15 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
 
     private var isRunning = false
 
-    private val connectionQueue = Semaphore(maxConcurrentConnections)
 
     private val executorService = Executors.newFixedThreadPool(maxConcurrentConnections)
 
     private val openConnections = ArrayList<Socket>(maxConcurrentConnections)
 
+    private val numberOfConnections: AtomicInteger = AtomicInteger(0)
 
-    val currentNumberOfConnections: Int
-        get() = openConnections.size
+    val activeConnections: Int
+        get() = numberOfConnections.get()
 
     init {
         if (port < 0 || port > 0xFFFF)
@@ -40,35 +41,42 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
 
     private fun acceptNewSockets() {
         while (isRunning) {
-            var socket: Socket? = null
             try {
-                connectionQueue.acquire()
-                socket = serverSocket.accept()
-                openConnections.add(socket)
-
+                val socket = serverSocket.accept()
                 handleNewSocket(socket)
             } catch (e: SocketException) {
-                println("Client closed connection")
-                connectionQueue.release()
-                if (socket != null)
-                    openConnections.remove(socket)
+
             }
+
         }
     }
 
     private fun handleNewSocket(socket: Socket) {
-
+        openConnections.add(socket)
         executorService.submit {
-            HttpHandler().handle(socket)
-            connectionQueue.release()
-            openConnections.remove(socket)
+            handleSocket(socket)
         }
+    }
+
+    private fun handleSocket(socket: Socket) {
+
+        numberOfConnections.incrementAndGet()
+        val io = IOStream(socket)
+        try {
+            io.readLine()
+        } finally {
+            numberOfConnections.decrementAndGet()
+            openConnections.remove(socket)
+            io.close()
+        }
+
     }
 
     fun stop() {
         isRunning = false
-        openConnections.forEach { it.close() }
+        openConnections.toList().forEach { it.close() }
         openConnections.clear()
+        numberOfConnections.set(0)
         if (::serverSocket.isInitialized)
             serverSocket.close()
 
