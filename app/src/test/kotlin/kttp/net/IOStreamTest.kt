@@ -20,7 +20,7 @@ class IOStreamTest {
 
     @BeforeEach
     fun setup() {
-        this.server = SimpleTestServer(defaultPort)
+        this.server = SimpleTestServer(defaultPort, 4)
         thread { this.server.start() }
         this.client = IOStream(Socket(InetAddress.getLocalHost(), defaultPort))
     }
@@ -45,6 +45,22 @@ class IOStreamTest {
         server.write("Test")
         assertThrows<StreamAlreadyClosed> { client.readLine() }
 
+    }
+
+    @Test()
+    fun serverStartsReadToClosedStream_shouldThrowEndOfStream() {
+        thread {
+            Thread.sleep(500)
+            client.close()
+        }
+
+        assertThrows<EndOfStream> { server.readLine() }
+    }
+
+    @Test
+    fun createIoStreamWithTimeout_ShouldThrowEndOfStreamAfterTimeout() {
+
+        assertThrows<EndOfStream> { server.readLine() }
     }
 
 

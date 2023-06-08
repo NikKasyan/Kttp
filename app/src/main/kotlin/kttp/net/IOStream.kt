@@ -1,20 +1,27 @@
 package kttp.net
 
+import java.io.IOException
+import java.io.PrintWriter
 import java.net.Socket
 import java.nio.charset.Charset
+import java.time.Duration
 
-class IOStream(private val socket: Socket, charset: Charset = Charsets.UTF_8) : AutoCloseable {
+class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSeconds(0), charset: Charset = Charsets.UTF_8) : AutoCloseable {
 
     private val input = socket.getInputStream().bufferedReader(charset)
-    private val output = socket.getOutputStream().bufferedWriter(charset)
+    private val output = PrintWriter(socket.getOutputStream().bufferedWriter(charset), true)
 
     private var wasClosedManually: Boolean = false
+
+    init {
+        socket.soTimeout = timeout.toMillis().toInt()
+    }
 
     private val isClosed
         get() = wasClosedManually || !socket.isConnected || socket.isClosed ||
                 socket.isInputShutdown || socket.isOutputShutdown
 
-    fun writeln(string: String) {
+    fun println(string: String) {
         write("${string}\n")
     }
 
@@ -28,7 +35,11 @@ class IOStream(private val socket: Socket, charset: Charset = Charsets.UTF_8) : 
     fun readLine(): String {
         if (isClosed)
             throw StreamAlreadyClosed()
-        return input.readLine() ?: throw EndOfStream()
+        try {
+            return input.readLine() ?: throw EndOfStream()
+        } catch (ioException: IOException) {
+            throw EndOfStream()
+        }
     }
 
     override fun close() {
