@@ -3,6 +3,7 @@ package kttp.net
 import java.io.IOException
 import java.io.PrintWriter
 import java.net.Socket
+import java.nio.CharBuffer
 import java.nio.charset.Charset
 import java.time.Duration
 
@@ -21,8 +22,8 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
         get() = wasClosedManually || !socket.isConnected || socket.isClosed ||
                 socket.isInputShutdown || socket.isOutputShutdown
 
-    fun println(string: String) {
-        write("${string}\n")
+    fun writeln(string: String) {
+        write("${string}\r\n")
     }
 
     fun write(string: String) {
@@ -42,12 +43,27 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
         }
     }
 
+    private fun read(charBuffer: CharBuffer): Int {
+        if (isClosed)
+            throw StreamAlreadyClosed()
+        return input.read(charBuffer)
+    }
+
+    fun readBytes(contentLength: Int): String {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        val charArray = CharArray(contentLength)
+        input.read(charArray, 0, contentLength)
+        return String(charArray)
+    }
+
     override fun close() {
         wasClosedManually = true
         socket.close()
         input.close()
         output.close()
     }
+
 }
 
 class EndOfStream : RuntimeException()

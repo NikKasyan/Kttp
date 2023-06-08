@@ -27,7 +27,7 @@ class SimpleTestServer(port: Int, private val timeout: Int) {
     }
 
     fun write(msg: String) {
-        ioStream.println(msg)
+        ioStream.writeln(msg)
     }
 
 

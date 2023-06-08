@@ -1,5 +1,6 @@
 package kttp.http
 
+import kttp.http.protocol.*
 import kttp.net.IOStream
 import java.net.ServerSocket
 import java.net.Socket
@@ -45,7 +46,7 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
                 val socket = serverSocket.accept()
                 handleNewSocket(socket)
             } catch (e: SocketException) {
-
+                println("Connection closed")
             }
 
         }
@@ -61,15 +62,25 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
     private fun handleSocket(socket: Socket) {
 
         numberOfConnections.incrementAndGet()
-        val io = IOStream(socket)
         try {
-            io.readLine()
+            IOStream(socket).use { io ->
+
+                val httpRequest = HttpHandler().handle(io)
+
+                respond(httpRequest, io)
+            }
+
         } finally {
             numberOfConnections.decrementAndGet()
             openConnections.remove(socket)
-            io.close()
         }
 
+    }
+
+    private fun respond(httpRequest: HttpRequest, io: IOStream) {
+        val status = StatusLine(HttpVersion(1, 1), HttpStatus.OK)
+        val httpResponse = HttpResponse(status, HttpHeaders(), httpRequest.body)
+        io.write(httpResponse.toString())
     }
 
     fun stop() {
