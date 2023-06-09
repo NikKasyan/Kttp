@@ -1,5 +1,6 @@
 package kttp.net
 
+import kttp.mock.SimpleTestServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -21,7 +22,7 @@ class IOStreamTest {
     @BeforeEach
     fun setup() {
         this.server = SimpleTestServer(defaultPort, 4)
-        thread { this.server.start() }
+        thread { this.server.acceptSocket() }
         this.client = IOStream(Socket(InetAddress.getLocalHost(), defaultPort))
     }
 
@@ -29,7 +30,41 @@ class IOStreamTest {
     fun serverWrites_clientReceives() {
         val message = "Hello"
         server.write(message)
-        val receivedMessage = client.readLine()
+        server.write(message)
+        var receivedMessage = client.readLine()
+
+        Assertions.assertEquals(message, receivedMessage)
+        receivedMessage = client.readLine()
+
+        Assertions.assertEquals(message, receivedMessage)
+    }
+
+    @Test
+    fun serverWritesThrice_clientReceivesLineNoLineAndLine() {
+        val message = "Hello"
+        server.write(message)
+        server.write(message)
+        server.write(message)
+        var receivedMessage = client.readLine()
+
+        Assertions.assertEquals(message, receivedMessage)
+
+        receivedMessage = client.readBytesAsString(message.length + 2)
+
+        Assertions.assertEquals(message+"\r\n", receivedMessage)
+        receivedMessage = client.readLine()
+
+        Assertions.assertEquals(message, receivedMessage)
+    }
+
+    @Test
+    fun clientWritesTwoLines_ServerReceivesTwo() {
+        val message = "Hello"
+        client.write(message + "\r\n")
+        client.write(message + "\r\n")
+        var receivedMessage = server.readLine()
+        Assertions.assertEquals(message, receivedMessage)
+        receivedMessage = server.readLine()
         Assertions.assertEquals(message, receivedMessage)
     }
 

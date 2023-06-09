@@ -1,5 +1,6 @@
 package kttp.net
 
+import kttp.net.LineReader
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.IOException
@@ -11,7 +12,7 @@ import java.time.Duration
 // https://www.rfc-editor.org/rfc/rfc7230#page-19
 class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSeconds(0), charset: Charset = Charsets.UTF_8) : AutoCloseable {
 
-    private val input = BufferedInputStream(socket.getInputStream())
+    private val input = LineReader(socket.getInputStream())
     private val output = BufferedOutputStream(socket.getOutputStream())
 
     private var wasClosedManually: Boolean = false
@@ -39,7 +40,7 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
         if (isClosed)
             throw StreamAlreadyClosed()
         try {
-            return input.bufferedReader().readLine() ?: throw EndOfStream()
+            return input.readLine() ?: throw EndOfStream()
         } catch (ioException: IOException) {
             throw EndOfStream()
         }
