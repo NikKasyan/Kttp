@@ -31,7 +31,6 @@ class HttpClient(baseURL: String) {
         val out = socket.getOutputStream()
 
         val request = HttpRequest.from(method, URI(requestUrl), httpHeaders)
-        println(request.toString().replace("\r\n", "\\r\\n\r\n"))
         out.write(request.toString().toByteArray())
         out.flush()
 
