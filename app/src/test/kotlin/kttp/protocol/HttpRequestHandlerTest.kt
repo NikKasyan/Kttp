@@ -33,7 +33,7 @@ class HttpRequestHandlerTest {
         }
 
         val acceptedClient = simpleTestServer.acceptSocket()
-        print(HttpRequestHandler().handle(acceptedClient))
+        val request = HttpRequestHandler().handle(acceptedClient)
 
 
     }
