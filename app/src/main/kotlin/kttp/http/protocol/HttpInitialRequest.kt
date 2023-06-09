@@ -23,7 +23,7 @@ class HttpInitialRequest(requestString: String) {
 
     }
 
-    //Todo: Implement rest of https://www.rfc-editor.org/rfc/rfc2616#section-5.1.2
+    //Todo: Implement rest of https://www.rfc-editor.org/rfc/rfc7230#section-5.3
     private fun parseURI(path: String): URI {
         try {
             val uri = URI(path)

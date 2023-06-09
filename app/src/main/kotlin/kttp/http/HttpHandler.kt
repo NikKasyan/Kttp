@@ -26,8 +26,7 @@ class HttpHandler {
 
     }
 
-    //Todo: https://www.rfc-editor.org/rfc/rfc2616#section-7.2 should also handle if the body is compressed etc.
-    //https://www.rfc-editor.org/rfc/rfc2616#section-4.3
+    //Todo: https://www.rfc-editor.org/rfc/rfc7230#section-3.3 should also handle if the body is compressed etc.
     private fun readBody(io: IOStream, headers: HttpHeaders): String {
         if (headers.hasContentLength()) {
             val contentLength = headers.getContentLength()
