@@ -62,25 +62,35 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
     private fun handleSocket(socket: Socket) {
 
         numberOfConnections.incrementAndGet()
+        val io = IOStream(socket)
         try {
-            IOStream(socket).use { io ->
+            //Todo: Handle any errors that might occur during requests
+            val httpRequest = HttpRequestHandler().handle(io)
 
-                //Todo: Handle any errors that might occur during requests
-                val httpRequest = HttpRequestHandler().handle(io)
+            respond(httpRequest, io)
 
-                respond(httpRequest, io)
-            }
 
             //Todo: If major version is not supported by this server
             // Answer with A server can send a 505
             //   (HTTP Version Not Supported) response if it wishes, for any reason,
             //   to refuse service of the client's major protocol version.
             // https://www.rfc-editor.org/rfc/rfc7230#page-14
+        } catch (exception: Exception) {
+            responseWithError(io, exception)
         } finally {
+            io.close()
             numberOfConnections.decrementAndGet()
             openConnections.remove(socket)
         }
 
+    }
+
+    private fun responseWithError(io: IOStream, exception: Exception) {
+        if (exception is InvalidHttpRequestLine) {
+            io.writeln(HttpResponse.badRequest(body = exception.message ?: "No message").toString())
+        } else {
+            io.writeln(HttpResponse.internalError(body = exception.message ?: "No message").toString())
+        }
     }
 
     private fun respond(httpRequest: HttpRequest, io: IOStream) {

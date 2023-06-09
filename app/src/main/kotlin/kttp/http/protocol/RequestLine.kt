@@ -70,7 +70,10 @@ class RequestLine {
 
 }
 
-class UnknownHttpMethod(msg: String) : InvalidHttpRequest(msg)
-class InvalidRequestPath(msg: String) : InvalidHttpRequest(msg)
+open class InvalidHttpRequestLine(msg: String): InvalidHttpRequest(msg){
 
-class InvalidHttpRequestStructure(msg: String) : InvalidHttpRequest(msg)
+}
+class UnknownHttpMethod(msg: String) : InvalidHttpRequestLine(msg)
+class InvalidRequestPath(msg: String) : InvalidHttpRequestLine(msg)
+
+class InvalidHttpRequestStructure(msg: String) : InvalidHttpRequestLine(msg)
