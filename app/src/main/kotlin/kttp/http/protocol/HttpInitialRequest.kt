@@ -28,8 +28,8 @@ class HttpInitialRequest(requestString: String) {
         try {
             val uri = URI(path)
 
-            if(uri.isAbsolute && (uri.scheme != "http" && uri.scheme != "https"))
-                throw InvalidRequestPath("Absolute Request uri may only have scheme http or https")
+            if(uri.isAbsolute)
+                checkAbsoluteUri(uri)
 
             if(!uri.isAbsolute && !uri.path.startsWith("/"))
                 throw InvalidRequestPath("Absolute Request path must begin with a /")
@@ -38,6 +38,14 @@ class HttpInitialRequest(requestString: String) {
         } catch (e: URISyntaxException) {
             throw InvalidRequestPath("Invalid Path $path")
         }
+    }
+
+    private fun checkAbsoluteUri(uri: URI) {
+        if(uri.scheme != "http" && uri.scheme != "https")
+            throw InvalidRequestPath("Absolute Request uri may only have scheme http or https")
+        if(uri.host.isEmpty())
+            throw InvalidRequestPath("Host of absolute URI may not be empty")
+        
     }
 
     private fun getMethodByName(methodString: String): Method {

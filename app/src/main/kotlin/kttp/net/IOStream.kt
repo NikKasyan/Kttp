@@ -1,16 +1,18 @@
 package kttp.net
 
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.IOException
-import java.io.PrintWriter
 import java.net.Socket
-import java.nio.CharBuffer
 import java.nio.charset.Charset
 import java.time.Duration
 
+//Todo: Have to rewrite using bytes instead of strings and not using UTF-8 as standard charset
+// https://www.rfc-editor.org/rfc/rfc7230#page-19
 class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSeconds(0), charset: Charset = Charsets.UTF_8) : AutoCloseable {
 
-    private val input = socket.getInputStream().bufferedReader(charset)
-    private val output = PrintWriter(socket.getOutputStream().bufferedWriter(charset), true)
+    private val input = BufferedInputStream(socket.getInputStream())
+    private val output = BufferedOutputStream(socket.getOutputStream())
 
     private var wasClosedManually: Boolean = false
 
@@ -26,10 +28,10 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
         write("${string}\r\n")
     }
 
-    fun write(string: String) {
+    fun write(string: String, charset: Charset = Charsets.UTF_8) {
         if (isClosed)
             throw StreamAlreadyClosed()
-        output.write(string)
+        output.write(string.toByteArray(charset))
         output.flush()
     }
 
@@ -37,24 +39,22 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
         if (isClosed)
             throw StreamAlreadyClosed()
         try {
-            return input.readLine() ?: throw EndOfStream()
+            return input.bufferedReader().readLine() ?: throw EndOfStream()
         } catch (ioException: IOException) {
             throw EndOfStream()
         }
     }
 
-    private fun read(charBuffer: CharBuffer): Int {
+    fun readBytes(contentLength: Int): ByteArray {
         if (isClosed)
             throw StreamAlreadyClosed()
-        return input.read(charBuffer)
+        val byteArray = ByteArray(contentLength)
+        input.read(byteArray, 0, contentLength)
+        return byteArray
     }
 
-    fun readBytes(contentLength: Int): String {
-        if(isClosed)
-            throw StreamAlreadyClosed()
-        val charArray = CharArray(contentLength)
-        input.read(charArray, 0, contentLength)
-        return String(charArray)
+    fun readBytesAsString(contentLength: Int, charset: Charset = Charsets.UTF_8): String {
+        return String(readBytes(contentLength), charset)
     }
 
     override fun close() {

@@ -3,12 +3,15 @@ package kttp.http
 import kttp.http.protocol.HttpHeaders
 import kttp.http.protocol.HttpInitialRequest
 import kttp.http.protocol.HttpRequest
+import kttp.http.protocol.InvalidHttpVersion
 import kttp.net.IOStream
 import java.lang.Exception
 
 class HttpHandler {
 
 
+    //Todo: Should probably loop here because https://www.rfc-editor.org/rfc/rfc7230#section-6.3
+    // suggests that the connection may send more than one request
     fun handle(io: IOStream): HttpRequest {
         try {
             val httpVersionString = io.readLine()
@@ -30,7 +33,7 @@ class HttpHandler {
     private fun readBody(io: IOStream, headers: HttpHeaders): String {
         if (headers.hasContentLength()) {
             val contentLength = headers.getContentLength()
-            return io.readBytes(contentLength)
+            return io.readBytes(contentLength).toString(Charsets.UTF_8)
         }
         return ""
     }
