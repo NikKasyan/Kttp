@@ -7,6 +7,10 @@ private val HTTP_VERSION_REGEX = Regex("^\\d+\\.\\d+")
 
 class HttpVersion {
 
+    companion object {
+        val DEFAULT_VERSION = HttpVersion(1, 1)
+    }
+
     val majorVersion: Int
     val minorVersion: Int
 

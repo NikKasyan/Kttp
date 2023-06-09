@@ -3,11 +3,17 @@ package kttp.http.protocol
 object CommonHeaders {
     const val CONTENT_LENGTH = "Content-Length"
 }
+
 class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
+
+    constructor(vararg headers: Pair<String, String>) : this() {
+        this.headers.putAll(headers)
+    }
 
     fun add(headerString: String) {
         add(HttpHeader(headerString))
     }
+
     fun add(header: HttpHeader) {
         headers[header.key] = header.value
     }
@@ -20,11 +26,11 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
     ///////////////////////////////////////////////////////
     //                  COMMON HEADERS                  //
     //////////////////////////////////////////////////////
-    fun contentLength(contentLength: Int){
+    fun contentLength(contentLength: Int) {
         headers[CommonHeaders.CONTENT_LENGTH] = contentLength.toString()
     }
 
-    fun hasContentLength(): Boolean{
+    fun hasContentLength(): Boolean {
         return headers.containsKey(CommonHeaders.CONTENT_LENGTH)
     }
 
