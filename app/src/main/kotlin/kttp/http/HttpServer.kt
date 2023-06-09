@@ -66,7 +66,7 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
             IOStream(socket).use { io ->
 
                 //Todo: Handle any errors that might occur during requests
-                val httpRequest = HttpHandler().handle(io)
+                val httpRequest = HttpRequestHandler().handle(io)
 
                 respond(httpRequest, io)
             }
