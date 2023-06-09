@@ -1,13 +1,12 @@
 package kttp.http
 
 import kttp.http.protocol.HttpHeaders
-import kttp.http.protocol.HttpInitialRequest
+import kttp.http.protocol.RequestLine
 import kttp.http.protocol.HttpRequest
-import kttp.http.protocol.InvalidHttpVersion
 import kttp.net.IOStream
 import java.lang.Exception
 
-class HttpHandler {
+class HttpRequestHandler {
 
 
     //Todo: Should probably loop here because https://www.rfc-editor.org/rfc/rfc7230#section-6.3
@@ -15,13 +14,13 @@ class HttpHandler {
     fun handle(io: IOStream): HttpRequest {
         try {
             val httpVersionString = io.readLine()
-            val httpInitialRequest = HttpInitialRequest(httpVersionString)
+            val requestLine = RequestLine(httpVersionString)
 
             val headers = readHeaders(io)
 
             val body = readBody(io, headers)
 
-            return HttpRequest(httpInitialRequest, headers, body)
+            return HttpRequest(requestLine, headers, body)
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
