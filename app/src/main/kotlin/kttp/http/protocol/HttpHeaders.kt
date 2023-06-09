@@ -1,7 +1,8 @@
 package kttp.http.protocol
 
-
-const val CONTENT_LENGTH = "Content-Length"
+object CommonHeaders {
+    const val CONTENT_LENGTH = "Content-Length"
+}
 class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
 
     fun add(headerString: String) {
@@ -16,16 +17,19 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
     }
 
 
+    ///////////////////////////////////////////////////////
+    //                  COMMON HEADERS                  //
+    //////////////////////////////////////////////////////
     fun contentLength(contentLength: Int){
-        headers[CONTENT_LENGTH] = contentLength.toString()
+        headers[CommonHeaders.CONTENT_LENGTH] = contentLength.toString()
     }
 
     fun hasContentLength(): Boolean{
-        return headers.containsKey(CONTENT_LENGTH)
+        return headers.containsKey(CommonHeaders.CONTENT_LENGTH)
     }
 
     fun getContentLength(): Int {
-        return headers[CONTENT_LENGTH]!!.toInt()
+        return headers[CommonHeaders.CONTENT_LENGTH]!!.toInt()
     }
 
     fun list(): List<HttpHeader> {
