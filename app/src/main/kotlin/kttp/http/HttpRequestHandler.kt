@@ -2,6 +2,7 @@ package kttp.http
 
 import kttp.http.protocol.HttpHeaders
 import kttp.http.protocol.HttpRequest
+import kttp.http.protocol.InvalidHeaderName
 import kttp.http.protocol.RequestLine
 import kttp.net.IOStream
 
@@ -36,7 +37,12 @@ class HttpRequestHandler {
             val string = io.readLine()
             if (string.isEmpty())
                 break
-            headers.add(string)
+            try {
+
+                headers.add(string)
+            } catch (e: InvalidHeaderName) {
+                //Ignore headers with invalid Header Name
+            }
         }
         return headers
     }
