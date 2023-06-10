@@ -86,10 +86,16 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
     }
 
     private fun responseWithError(io: IOStream, exception: Exception) {
-        if (exception is InvalidHttpRequestLine) {
-            io.writeln(HttpResponse.badRequest(body = exception.message ?: "No message").toString())
-        } else {
-            io.writeln(HttpResponse.internalError(body = exception.message ?: "No message").toString())
+        val httpResponse = httpResponseFromException(exception)
+        io.writeln(httpResponse.toString())
+    }
+
+    private fun httpResponseFromException(exception: Exception) = when (exception) {
+        is HeaderNameEndsWithWhiteSpace, is InvalidHttpRequestLine -> {
+            HttpResponse.badRequest(body = exception.message ?: "No message")
+        }
+        else -> {
+            HttpResponse.internalError(body = exception.message ?: "No message")
         }
     }
 
