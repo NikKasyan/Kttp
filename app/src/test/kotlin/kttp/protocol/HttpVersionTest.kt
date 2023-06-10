@@ -12,20 +12,20 @@ class HttpVersionTest {
     fun httpVersion_NotStartingWithHTTP_ShouldThrowInvalidHttpVersion() {
         assertThrows<InvalidHttpVersion> { HttpVersion("1.1") }
     }
+
     @Test
     fun httpVersion_NotEndingWithNoVersion_ShouldThrowInvalidHttpVersion() {
         assertThrows<InvalidHttpVersion> { HttpVersion("HTTP/") }
     }
+
     @Test
     fun httpVersion_EndingWithInValidVersion_ShouldThrowInvalidHttpVersion() {
         assertThrows<InvalidHttpVersion> { HttpVersion("HTTP/1.1a") }
     }
+
     @Test
     fun httpVersion_WithValidVersionStartingWithZeros_ShouldParseCorrectVersion() {
-        val httpVersion = HttpVersion("HTTP/00001.001")
-
-        assertEquals(httpVersion.majorVersion, 1)
-        assertEquals(httpVersion.minorVersion, 1)
+        assertThrows<InvalidHttpVersion> { HttpVersion("HTTP/00001.001") }
     }
 
     @Test
@@ -38,9 +38,6 @@ class HttpVersionTest {
 
     @Test
     fun httpVersion_WithValidVersionMultipleDigits_ShouldParseCorrectVersion() {
-        val httpVersion = HttpVersion("HTTP/12.31")
-
-        assertEquals(httpVersion.majorVersion, 12)
-        assertEquals(httpVersion.minorVersion, 31)
+        assertThrows<InvalidHttpVersion> { HttpVersion("HTTP/12.31") }
     }
 }

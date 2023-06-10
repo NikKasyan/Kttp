@@ -3,7 +3,7 @@ package kttp.http.protocol
 
 private const val HTTP_START = "HTTP/"
 
-private val HTTP_VERSION_REGEX = Regex("^\\d+\\.\\d+")
+private val HTTP_VERSION_REGEX = Regex("^\\d\\.\\d")
 
 class HttpVersion {
 
