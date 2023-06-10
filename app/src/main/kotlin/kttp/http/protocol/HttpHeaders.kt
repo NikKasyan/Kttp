@@ -33,8 +33,9 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
     ///////////////////////////////////////////////////////
     //                  COMMON HEADERS                  //
     //////////////////////////////////////////////////////
-    fun addContentLength(contentLength: Int) {
+    fun withContentLength(contentLength: Int): HttpHeaders {
         headers[CommonHeaders.CONTENT_LENGTH] = contentLength.toString()
+        return this
     }
 
     fun hasContentLength(): Boolean {
@@ -45,8 +46,9 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers[CommonHeaders.CONTENT_LENGTH]!!.toInt()
     }
 
-    fun addUserAgent(userAgent: String) {
+    fun withUserAgent(userAgent: String): HttpHeaders {
         headers[CommonHeaders.USER_AGENT] = userAgent
+        return this
     }
 
     fun hasUserAgent(): Boolean {
@@ -57,8 +59,9 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers[CommonHeaders.USER_AGENT]!!
     }
 
-    fun addHost(host: String) {
+    fun withHost(host: String): HttpHeaders {
         headers[CommonHeaders.HOST] = host
+        return this
     }
 
     fun hasHost(): Boolean {
@@ -69,12 +72,18 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers[CommonHeaders.HOST]!!
     }
 
-    fun addAcceptLanguage(vararg language: String) {
-        headers[CommonHeaders.ACCEPT_LANGUAGE] = language.joinToString(", ")
+    fun withAcceptLanguage(vararg language: String): HttpHeaders {
+        return withAcceptLanguage(language.toList())
     }
 
-    fun addAcceptLanguage(language: List<String>) {
+    fun withAcceptLanguage(language: List<String>): HttpHeaders {
+
+        return withAcceptLanguage(language as Iterable<String>)
+    }
+
+    fun withAcceptLanguage(language: Iterable<String>): HttpHeaders {
         headers[CommonHeaders.ACCEPT_LANGUAGE] = language.joinToString(", ")
+        return this
     }
 
     fun hasAcceptLanguage(): Boolean {
