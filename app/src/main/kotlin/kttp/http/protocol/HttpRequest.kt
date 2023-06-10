@@ -19,7 +19,7 @@ class HttpRequest(private val requestLine: RequestLine, val httpHeaders: HttpHea
 
 
     override fun toString(): String {
-        return "$requestLine\r\n$httpHeaders\r\n\r\n$body"
+        return "$requestLine$httpHeaders\r\n\r\n$body"
     }
 }
 

@@ -65,7 +65,7 @@ class RequestLine {
     }
 
     override fun toString(): String {
-        return "$method $uri $httpVersion"
+        return "$method $uri $httpVersion\r\n"
     }
 
 }

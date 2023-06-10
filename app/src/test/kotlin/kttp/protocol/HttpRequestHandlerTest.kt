@@ -24,9 +24,9 @@ class HttpRequestHandlerTest {
     fun createHttpServerWithInvalidPorts_shouldThrowException() {
         thread {
             Thread.sleep(500)
-//            HttpClient.get("http://google.com/", HttpHeaders(
-//                    "host" to "localhost"
-//            ))
+            //HttpClient.get("http://google.com/", HttpHeaders(
+            //        "host" to "localhost"
+            //))
             HttpClient.get("http://localhost/", HttpHeaders(
                     "Host" to "localhost"
             ))
