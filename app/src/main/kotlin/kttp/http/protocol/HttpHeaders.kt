@@ -2,12 +2,15 @@ package kttp.http.protocol
 
 object CommonHeaders {
     const val CONTENT_LENGTH = "Content-Length"
+    const val USER_AGENT = "User-Agent"
+    const val HOST = "Host"
+    const val ACCEPT_LANGUAGE = "Accept-Language"
 }
 
 class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
 
     constructor(vararg headers: Pair<String, String>) : this() {
-        this.headers.putAll(headers)
+        add(*headers)
     }
 
     fun add(headerString: String) {
@@ -22,11 +25,15 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         headers[header.first] = header.second
     }
 
+    fun add(vararg headers: Pair<String, String>) {
+        this.headers.putAll(headers)
+    }
+
 
     ///////////////////////////////////////////////////////
     //                  COMMON HEADERS                  //
     //////////////////////////////////////////////////////
-    fun contentLength(contentLength: Int) {
+    fun addContentLength(contentLength: Int) {
         headers[CommonHeaders.CONTENT_LENGTH] = contentLength.toString()
     }
 
@@ -36,6 +43,50 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
 
     fun getContentLength(): Int {
         return headers[CommonHeaders.CONTENT_LENGTH]!!.toInt()
+    }
+
+    fun addUserAgent(userAgent: String) {
+        headers[CommonHeaders.USER_AGENT] = userAgent
+    }
+
+    fun hasUserAgent(): Boolean {
+        return headers.containsKey(CommonHeaders.USER_AGENT)
+    }
+
+    fun getUserAgent(): String {
+        return headers[CommonHeaders.USER_AGENT]!!
+    }
+
+    fun addHost(host: String) {
+        headers[CommonHeaders.HOST] = host
+    }
+
+    fun hasHost(): Boolean {
+        return headers.containsKey(CommonHeaders.HOST)
+    }
+
+    fun getHost(): String {
+        return headers[CommonHeaders.HOST]!!
+    }
+
+    fun addAcceptLanguage(vararg language: String) {
+        headers[CommonHeaders.ACCEPT_LANGUAGE] = language.joinToString(", ")
+    }
+
+    fun addAcceptLanguage(language: List<String>) {
+        headers[CommonHeaders.ACCEPT_LANGUAGE] = language.joinToString(", ")
+    }
+
+    fun hasAcceptLanguage(): Boolean {
+        return headers.containsKey(CommonHeaders.ACCEPT_LANGUAGE)
+    }
+
+    fun getAcceptLanguage(): String {
+        return headers[CommonHeaders.ACCEPT_LANGUAGE]!!
+    }
+
+    fun getAcceptLanguageList(): List<String> {
+        return getAcceptLanguage().split(",").map { it.trim() }
     }
 
     fun list(): List<HttpHeader> {

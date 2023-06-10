@@ -24,7 +24,7 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
 
     override fun toString(): String {
         if (body.isNotEmpty() && !headers.hasContentLength())
-            headers.contentLength(body.length)
+            headers.addContentLength(body.length)
         return "$statusLine\r\n$headers\r\n\r\n$body"
     }
 
