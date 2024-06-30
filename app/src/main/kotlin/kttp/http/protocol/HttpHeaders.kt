@@ -1,40 +1,74 @@
 package kttp.http.protocol
 
+import java.text.DateFormat
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.HashMap
+
 object CommonHeaders {
     const val CONTENT_LENGTH = "Content-Length"
     const val USER_AGENT = "User-Agent"
     const val HOST = "Host"
     const val ACCEPT_LANGUAGE = "Accept-Language"
     const val TRANSFER_ENCODING = "Transfer-Encoding"
+    const val DATE = "Date"
+    //Todo: Add missing Common Headers
+    // Trailer: https://www.rfc-editor.org/rfc/rfc9110#name-trailer
 
 }
 
+object DateFormats {
+    private const val IMF_FIX_DATE = "EEE, dd MMM yyyy HH:mm:ss z"
+
+
+    fun createImfFixDateFormat(locale: Locale = Locale.US, timeZone: TimeZone = TimeZone.getDefault()): DateFormat {
+
+        val dateFormat = SimpleDateFormat(IMF_FIX_DATE, locale)
+        dateFormat.timeZone = timeZone
+        return dateFormat
+    }
+}
+
+//Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
 class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
 
     constructor(vararg headers: Pair<String, String>) : this() {
         add(*headers)
     }
 
-    fun add(headerString: String) {
+    operator fun set(key: String, value: String) {
+        headers[key] = value
+    }
+
+    operator fun get(key: String): String? = headers[key]
+
+    fun add(headerString: String): HttpHeaders {
         add(HttpHeader(headerString))
+        return this
     }
 
-    fun add(header: HttpHeader) {
+    fun add(header: HttpHeader): HttpHeaders {
+        if (header.key == CommonHeaders.HOST && hasHost()) // https://www.rfc-editor.org/rfc/rfc9112#section-3.2-6
+            throw InvalidHeader("May not contain multiple Host Fields")
         headers[header.key] = header.value
+        return this
     }
 
-    fun add(header: Pair<String, String>) {
+    fun add(header: Pair<String, String>): HttpHeaders {
         add(HttpHeader(header))
+        return this
     }
 
-    fun add(vararg headers: Pair<String, String>) {
+    fun add(vararg headers: Pair<String, String>): HttpHeaders {
         add(headers.map { HttpHeader(it) })
+        return this
     }
 
-    fun add(headers: List<HttpHeader>) {
-        this.headers.putAll(headers.map { it.key to it.value })
+    fun add(headers: List<HttpHeader>): HttpHeaders {
+        headers.forEach { add(it) }
+        return this
     }
-
 
     ///////////////////////////////////////////////////////
     //                  COMMON HEADERS                  //
@@ -122,6 +156,36 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return getTransferEncoding().split(", ")
     }
 
+    fun withDate(date: Date, timeZone: TimeZone = TimeZone.getDefault(), locale: Locale = Locale.US): HttpHeaders {
+        val dateString = convertToImfFixDate(date, timeZone, locale)
+        headers[CommonHeaders.DATE] = dateString
+        return this
+    }
+
+    /**
+     * Converts the given Date to a ImfFixDate String as the preferred dateString
+     * as mentioned in https://www.rfc-editor.org/rfc/rfc9110#name-date-time-formats
+     */
+    private fun convertToImfFixDate(date: Date, timeZone: TimeZone, locale: Locale): String {
+        val imfDateFormat = DateFormats.createImfFixDateFormat(locale, timeZone)
+        return imfDateFormat.format(date)
+    }
+
+    fun hasDate(): Boolean {
+        return headers.containsKey(CommonHeaders.DATE)
+    }
+
+    fun getDate(dateFormat: DateFormat = DateFormats.createImfFixDateFormat()): Date? {
+        if (!hasDate())
+            return null
+        return try {
+            dateFormat.parse(headers[CommonHeaders.DATE])
+        } catch (e: ParseException) {
+            null
+        }
+    }
+
+    fun getDateAsString(): String = headers[CommonHeaders.DATE]!!
 
     fun list(): List<HttpHeader> {
         return headers.toList().map { HttpHeader(it) }
@@ -140,7 +204,7 @@ private val endsWithWhiteSpace = Regex("\\s$")
 class HttpHeader {
     var key: String
         set(value) {
-            if(value.matches(endsWithWhiteSpace))
+            if (value.matches(endsWithWhiteSpace))
                 throw HeaderNameEndsWithWhiteSpace()
             if (!value.matches(tokenRegex))
                 throw InvalidHeaderName()
@@ -150,6 +214,7 @@ class HttpHeader {
         set(value) {
             field = value.trim()
         }
+
     constructor(httpHeader: String) {
         val httpHeaderParts = httpHeader.split(Regex(": "), 2)
         if (httpHeaderParts.size != 2)
@@ -178,4 +243,5 @@ class InvalidHeader(header: String) : InvalidHttpRequest("Header must be of stru
 
 class InvalidHeaderName : InvalidHttpRequest("Invalid header name")
 
-class HeaderNameEndsWithWhiteSpace: InvalidHttpRequest("Header may not end with a whitespace")
+class HeaderNameEndsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
+class HeaderStartsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
