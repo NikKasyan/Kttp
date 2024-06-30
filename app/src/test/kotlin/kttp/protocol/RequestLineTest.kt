@@ -17,6 +17,7 @@ class RequestLineTest {
 
         assertThrows<InvalidRequestPath>("Invalid relative path should start with /") {  RequestLine("GET invalidPath $httpVersion")}
         assertThrows<InvalidRequestPath>("Invalid scheme may only be http or https") {  RequestLine("GET ssh://invalidPath.com/asd $httpVersion")}
+        assertThrows<InvalidRequestPath>("Invalid scheme may only be http or https") {  RequestLine("GET ssh://invalidPath.com/asd $httpVersion")}
 
         assertThrows<UnknownHttpMethod> {  RequestLine("GET1 http://absolute.com/absolute/asd $httpVersion")}
 
@@ -29,28 +30,28 @@ class RequestLineTest {
         var httpRequest = RequestLine("GET http://absolute.com/absolute/asd $httpVersion")
 
         assertEquals(httpRequest.method, Method.GET)
-        assertEquals(httpRequest.uri, URI("http://absolute.com/absolute/asd"))
+        assertEquals(httpRequest.requestTarget, URI("http://absolute.com/absolute/asd"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
 
         httpRequest = RequestLine("GET /absolute/asd $httpVersion")
 
         assertEquals(httpRequest.method, Method.GET)
-        assertEquals(httpRequest.uri, URI("/absolute/asd"))
+        assertEquals(httpRequest.requestTarget, URI("/absolute/asd"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
 
         httpRequest = RequestLine("GET / $httpVersion")
 
         assertEquals(httpRequest.method, Method.GET)
-        assertEquals(httpRequest.uri, URI("/"))
+        assertEquals(httpRequest.requestTarget, URI("/"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
 
         httpRequest = RequestLine("POST / $httpVersion")
 
         assertEquals(httpRequest.method, Method.POST)
-        assertEquals(httpRequest.uri, URI("/"))
+        assertEquals(httpRequest.requestTarget, URI("/"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
     }
