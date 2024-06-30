@@ -4,7 +4,6 @@ import kttp.http.protocol.HttpHeader
 import kttp.http.protocol.InvalidHeaderName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
 
 class HttpHeaderTest {
 
