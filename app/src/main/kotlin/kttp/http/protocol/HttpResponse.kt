@@ -1,5 +1,6 @@
 package kttp.http.protocol
 
+//TODO: body should not be string but Inputstream
 class HttpResponse(private val statusLine: StatusLine, val headers: HttpHeaders, private val body: String) {
 
     companion object {

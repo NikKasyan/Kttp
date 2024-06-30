@@ -2,7 +2,7 @@ package kttp.http.protocol
 
 import kttp.http.MissingHostHeader
 import java.net.URI
-
+//TODO: body should not be string
 class HttpRequest(
     private val requestLine: RequestLine,
     val httpHeaders: HttpHeaders = HttpHeaders(),
