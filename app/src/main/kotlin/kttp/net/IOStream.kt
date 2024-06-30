@@ -1,16 +1,13 @@
 package kttp.net
 
-import kttp.net.LineReader
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.IOException
+import java.io.*
 import java.net.Socket
 import java.nio.charset.Charset
 import java.time.Duration
 
 //Todo: Have to rewrite using bytes instead of strings and not using UTF-8 as standard charset
 // https://www.rfc-editor.org/rfc/rfc7230#page-19
-class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSeconds(0), charset: Charset = Charsets.UTF_8) : AutoCloseable {
+class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSeconds(0), charset: Charset = Charsets.UTF_8) : InputStream(), AutoCloseable {
 
     private val input = LineReader(socket.getInputStream())
     private val output = BufferedOutputStream(socket.getOutputStream())
@@ -65,6 +62,60 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
         output.close()
     }
 
+    /////////////////
+    // InputStream //
+    ////////////////
+    override fun read(): Int {
+        return input.read()
+    }
+
+    override fun read(b: ByteArray): Int {
+        return input.read(b)
+    }
+
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        return input.read(b, off, len)
+    }
+
+    override fun readAllBytes(): ByteArray {
+        return input.readAllBytes()
+    }
+
+    override fun readNBytes(len: Int): ByteArray {
+        return input.readNBytes(len)
+    }
+
+    override fun readNBytes(b: ByteArray?, off: Int, len: Int): Int {
+        return input.readNBytes(b, off, len)
+    }
+
+    override fun skip(n: Long): Long {
+        return input.skip(n)
+    }
+
+    override fun skipNBytes(n: Long) {
+        input.skipNBytes(n)
+    }
+
+    override fun available(): Int {
+        return input.available()
+    }
+
+    override fun mark(readlimit: Int) {
+        input.mark(readlimit)
+    }
+
+    override fun reset() {
+        input.reset()
+    }
+
+    override fun markSupported(): Boolean {
+        return input.markSupported()
+    }
+
+    override fun transferTo(out: OutputStream?): Long {
+        return input.transferTo(out)
+    }
 }
 
 class EndOfStream : RuntimeException()
