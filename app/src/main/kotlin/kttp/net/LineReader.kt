@@ -3,84 +3,97 @@ package kttp.net
 import java.io.BufferedInputStream
 import java.io.InputStream
 import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 import kotlin.math.min
 
-class LineReader(private val inputStream: InputStream) {
+class LineReader(inputStream: InputStream): InputStream() {
     private val bufferedInputStream = BufferedInputStream(inputStream)
-    private val byteArray = ByteArray(4096)
+    private val buffer = ByteArray(4096)
     private var bytesRead: Int = 0
     private var position: Int = 0
 
-    fun readLine(): String? {
-        var line: String? = null
 
-        try {
-            val builder = StringBuilder()
+    companion object {
+        private const val CARRIAGE_RETURN: Byte = 0x0d // \r
+        private const val NEW_LINE: Byte = 0x0a // \n
+    }
 
-            while (true) {
-                if (position >= bytesRead) {
-                    bytesRead = bufferedInputStream.read(byteArray)
-                    position = 0
+    override fun read(): Int {
+        val buffer = ByteArray(1)
+        val readBytes = read(buffer, 0, 1)
+        if (readBytes == -1)
+            return -1
+        return buffer[0].toInt()
 
-                    if (bytesRead <= 0) {
-                        if (builder.isNotEmpty()) {
-                            line = builder.toString()
-                        }
-                        break
-                    }
-                }
+    }
+    fun readLine(): String {
+        val builder = StringBuilder()
 
-                val currentByte = byteArray[position++].toInt().toChar()
+        while (true) {
 
-                if (currentByte == '\r') {
-                    continue
-                } else if (currentByte == '\n') {
-                    line = builder.toString()
-                    break
-                }
+            if (isBufferEmpty()) {
+                bytesRead = bufferedInputStream.read(buffer)
+                position = 0
 
-                builder.append(currentByte)
+                if (bytesRead <= 0)
+                    return builder.toString()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+
+            val currentByte = buffer[position++]
+
+            if (currentByte == CARRIAGE_RETURN) {
+                continue
+            } else if (currentByte == NEW_LINE) {
+                return builder.toString()
+            }
+
+            builder.append(currentByte)
         }
-
-        return line
     }
 
-    fun close() {
-        bufferedInputStream.close()
+    fun readBytesAsString(contentLength: Int, charset: Charset = StandardCharsets.UTF_8): String {
+        val byteArray = readBytes(contentLength)
+        return String(byteArray, charset)
     }
 
+    private fun readBytes(contentLength: Int): ByteArray {
+        val byteArray = ByteArray(contentLength)
+        read(byteArray, contentLength)
+        return byteArray
+    }
 
-    fun read(buffer: ByteArray, offset: Int, contentLength: Int) {
-        val internalReadBytes = readFromInternalBuffer(buffer, offset, contentLength)
-        if (internalReadBytes == contentLength)
-            return
+    private fun read(buffer: ByteArray, contentLength: Int): Int{
+        return read(buffer, 0, contentLength)
+    }
 
-        bufferedInputStream.read(buffer, offset + internalReadBytes, contentLength - internalReadBytes)
+    override fun read(buffer: ByteArray, offset: Int, contentLength: Int): Int {
+        val bufferedBytes = readFromInternalBuffer(buffer, offset, contentLength)
+        if (bufferedBytes == contentLength)
+            return bufferedBytes
+        return bufferedInputStream.read(buffer, offset + bufferedBytes, contentLength - bufferedBytes)
     }
 
     private fun readFromInternalBuffer(buffer: ByteArray, offset: Int, contentLength: Int): Int {
-        if (position >= bytesRead) {
+        if (isBufferEmpty())
             return 0
-        }
 
         val numberOfBufferedBytes = bytesRead - position
 
         //We only want to read the minimum amount of bytes
         val readBytes = min(numberOfBufferedBytes, contentLength)
-
-        System.arraycopy(byteArray, position, buffer, offset, readBytes)
-
+        System.arraycopy(this.buffer, position, buffer, offset, readBytes)
         position += readBytes
 
         return readBytes
     }
 
-    fun readBytesAsString(contentLength: Int, charset: Charset = Charsets.UTF_8): String {
-        val byteArray = ByteArray(contentLength)
-        read(byteArray, 0, contentLength)
-        return String(byteArray, charset)
+
+    private fun isBufferEmpty(): Boolean {
+        return position >= bytesRead
     }
+
+    override fun close() {
+        bufferedInputStream.close()
+    }
+
 }
