@@ -43,6 +43,10 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
 
     operator fun get(key: String): String? = headers[key]
 
+    fun remove(key: String) {
+        headers.remove(key)
+    }
+
     fun add(headerString: String): HttpHeaders {
         add(HttpHeader(headerString))
         return this
@@ -70,9 +74,24 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return this
     }
 
+    fun add(vararg headers: HttpHeader): HttpHeaders {
+        add(headers.toList())
+        return this
+    }
+
     ///////////////////////////////////////////////////////
     //                  COMMON HEADERS                  //
     //////////////////////////////////////////////////////
+
+    var contentLength: Int?
+        get() = if (hasContentLength()) getContentLength() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.CONTENT_LENGTH)
+            else
+                withContentLength(value)
+        }
+
     fun withContentLength(contentLength: Int): HttpHeaders {
         headers[CommonHeaders.CONTENT_LENGTH] = contentLength.toString()
         return this
@@ -85,6 +104,15 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
     fun getContentLength(): Int {
         return headers[CommonHeaders.CONTENT_LENGTH]!!.toInt()
     }
+
+    var userAgent: String?
+        get() = if (hasUserAgent()) getUserAgent() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.USER_AGENT)
+            else
+                withUserAgent(value)
+        }
 
     fun withUserAgent(userAgent: String): HttpHeaders {
         headers[CommonHeaders.USER_AGENT] = userAgent
@@ -99,6 +127,15 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers[CommonHeaders.USER_AGENT]!!
     }
 
+    var host: String?
+        get() = if (hasHost()) getHost() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.HOST)
+            else
+                withHost(value)
+        }
+
     fun withHost(host: String): HttpHeaders {
         headers[CommonHeaders.HOST] = host
         return this
@@ -111,6 +148,15 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
     fun getHost(): String {
         return headers[CommonHeaders.HOST]!!
     }
+
+    var acceptLanguage: String?
+        get() = if (hasAcceptLanguage()) getAcceptLanguage() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.ACCEPT_LANGUAGE)
+            else
+                withAcceptLanguage(value)
+        }
 
     fun withAcceptLanguage(vararg language: String): HttpHeaders {
         return withAcceptLanguage(language.toList())
@@ -134,10 +180,18 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers[CommonHeaders.ACCEPT_LANGUAGE]!!
     }
 
-    fun getAcceptLanguageList(): List<String> {
+    fun getAcceptLanguageAsList(): List<String> {
         return getAcceptLanguage().split(", ").map { it.trim() }
     }
 
+    var transferEncoding: String?
+        get() = if (hasTransferEncoding()) getTransferEncoding() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.TRANSFER_ENCODING)
+            else
+                withTransferEncoding(value)
+        }
 
     fun withTransferEncoding(transferEncoding: String): HttpHeaders {
         headers[CommonHeaders.TRANSFER_ENCODING] = transferEncoding
@@ -155,6 +209,15 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
     fun getTransferEncodingAsList(): List<String> {
         return getTransferEncoding().split(", ")
     }
+
+    var date: Date?
+        get() = if (hasDate()) getDate() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.DATE)
+            else
+                withDate(value)
+        }
 
     fun withDate(date: Date, timeZone: TimeZone = TimeZone.getDefault(), locale: Locale = Locale.US): HttpHeaders {
         val dateString = convertToImfFixDate(date, timeZone, locale)
@@ -187,12 +250,12 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
 
     fun getDateAsString(): String = headers[CommonHeaders.DATE]!!
 
-    fun list(): List<HttpHeader> {
+    fun toList(): List<HttpHeader> {
         return headers.toList().map { HttpHeader(it) }
     }
 
     override fun toString(): String {
-        return list().joinToString("\r\n")
+        return toList().joinToString("\r\n")
     }
 
 }
@@ -202,39 +265,36 @@ private val tokenRegex = Regex("[A-Za-z0-9!#$%&'*+\\-.^_`|~]+")
 private val endsWithWhiteSpace = Regex("\\s$")
 
 class HttpHeader {
-    var key: String
-        set(value) {
-            if (value.matches(endsWithWhiteSpace))
-                throw HeaderNameEndsWithWhiteSpace()
-            if (!value.matches(tokenRegex))
-                throw InvalidHeaderName()
-            field = value
-        }
-    var value: String
-        set(value) {
-            field = value.trim()
-        }
+    val key: String
+    val value: String
 
     constructor(httpHeader: String) {
         val httpHeaderParts = httpHeader.split(Regex(": "), 2)
         if (httpHeaderParts.size != 2)
             throw InvalidHeader(httpHeader)
-        this.key = httpHeaderParts.component1()
-        this.value = httpHeaderParts.component2()
+        checkHeaderName(httpHeaderParts[0])
+        key = httpHeaderParts[0]
+        value = httpHeaderParts[1].trim()
+
     }
 
     constructor(key: String, value: String) {
+        checkHeaderName(key)
         this.key = key
-        this.value = value
+        this.value = value.trim()
     }
 
-    constructor(header: Pair<String, String>) {
-        this.key = header.first
-        this.value = header.second
-    }
+    constructor(header: Pair<String, String>): this(header.first, header.second)
 
     override fun toString(): String {
         return "$key: $value"
+    }
+
+    private fun checkHeaderName(key: String) {
+        if (key.matches(endsWithWhiteSpace))
+            throw HeaderNameEndsWithWhiteSpace()
+        if (!key.matches(tokenRegex))
+            throw InvalidHeaderName()
     }
 
 }
