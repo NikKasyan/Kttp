@@ -1,9 +1,8 @@
 package kttp.http.protocol
 
-class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val body: String) {
+class HttpResponse(private val statusLine: StatusLine, val headers: HttpHeaders, private val body: String) {
 
     companion object {
-
         fun ok(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
             return fromStatus(HttpStatus.OK, headers, body)
         }
