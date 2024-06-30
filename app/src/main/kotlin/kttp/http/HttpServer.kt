@@ -1,10 +1,12 @@
 package kttp.http
 
 import kttp.http.protocol.*
+import kttp.log.Logger
 import kttp.net.IOStream
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
+import java.util.Date
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -22,6 +24,7 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
 
     private val numberOfConnections: AtomicInteger = AtomicInteger(0)
 
+    private val log: Logger = Logger(javaClass)
     val activeConnections: Int
         get() = numberOfConnections.get()
 
@@ -32,9 +35,11 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
 
 
     fun start() {
+
         if (isRunning)
             throw IllegalStateException("Server can only be started once")
         isRunning = true
+        log.info { "Starting server on port $port" }
         this.serverSocket = ServerSocket(port)
         acceptNewSockets()
 
@@ -44,9 +49,10 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
         while (isRunning) {
             try {
                 val socket = serverSocket.accept()
+                log.info { "Got new Connection" }
                 handleNewSocket(socket)
             } catch (e: SocketException) {
-                println("Connection closed")
+                log.info { "Connection closed" }
             }
 
         }
@@ -67,6 +73,7 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
             //Todo: Handle any errors that might occur during requests
             val httpRequest = HttpRequestHandler().handle(io)
 
+
             respond(httpRequest, io)
 
 
@@ -76,8 +83,10 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
             //   to refuse service of the client's major protocol version.
             // https://www.rfc-editor.org/rfc/rfc7230#page-14
         } catch (exception: Exception) {
+            log.error { "Error: ${exception.message}" }
             responseWithError(io, exception)
         } finally {
+            log.info { "Closed connection." }
             io.close()
             numberOfConnections.decrementAndGet()
             openConnections.remove(socket)
@@ -87,22 +96,38 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
 
     private fun responseWithError(io: IOStream, exception: Exception) {
         val httpResponse = httpResponseFromException(exception)
-        io.writeln(httpResponse.toString())
+        respond(httpResponse, io)
     }
 
     private fun httpResponseFromException(exception: Exception) = when (exception) {
-        is HeaderNameEndsWithWhiteSpace, is InvalidHttpRequestLine -> {
+        is HeaderNameEndsWithWhiteSpace,
+        is InvalidHttpRequestLine,
+        is HeaderStartsWithWhiteSpace,
+        is InvalidHeader ->
             HttpResponse.badRequest(body = exception.message ?: "No message")
-        }
-        else -> {
+        else ->
             HttpResponse.internalError(body = exception.message ?: "No message")
-        }
     }
 
     private fun respond(httpRequest: HttpRequest, io: IOStream) {
         val status = StatusLine(HttpVersion(1, 1), HttpStatus.OK)
         val httpResponse = HttpResponse(status, HttpHeaders(), httpRequest.body)
-        io.write(httpResponse.toString())
+        respond(httpResponse, io)
+    }
+
+    private fun respond(httpResponse: HttpResponse, io: IOStream) {
+
+        addMandatoryHeadersIfMissing(httpResponse)
+
+        log.info { "Response $httpResponse" }
+        io.writeln(httpResponse.toString())
+    }
+
+    private fun addMandatoryHeadersIfMissing(httpResponse: HttpResponse) {
+        val headers = httpResponse.headers
+        if (!headers.hasDate())
+            headers.withDate(Date())
+
     }
 
     fun stop() {
