@@ -26,8 +26,8 @@ class HttpRequestHandler {
 
         checkHeaders(headers)
 
-        val body = readBody(io, headers)
 
+        val body = HttpBody(io, headers.contentLength)
 
         log.debug { "Body: $body" }
 
@@ -37,15 +37,6 @@ class HttpRequestHandler {
     private fun checkHeaders(headers: HttpHeaders) {
         if (!headers.hasHost())
             throw MissingHostHeader()
-    }
-
-    //Todo: Handle also Transfer-Encoding https://www.rfc-editor.org/rfc/rfc9112#name-transfer-encoding
-    private fun readBody(io: IOStream, headers: HttpHeaders): String {
-        if (headers.hasContentLength()) {
-            val contentLength = headers.getContentLength()
-            return io.readBytes(contentLength).toString(Charsets.UTF_8)
-        }
-        return ""
     }
 
     private fun readHeaders(io: IOStream): HttpHeaders {

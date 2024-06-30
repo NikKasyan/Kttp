@@ -1,22 +1,28 @@
 package kttp.http.protocol
 
 import kttp.http.MissingHostHeader
+import java.io.ByteArrayInputStream
 import java.net.URI
-//TODO: body should not be string
+
 class HttpRequest(
     private val requestLine: RequestLine,
     val httpHeaders: HttpHeaders = HttpHeaders(),
-    val body: String = ""
+    val body: HttpBody
 ) {
 
+    init {
+        if(body.hasContentLength() && !httpHeaders.hasContentLength())
+            httpHeaders.withContentLength(body.contentLength!!)
+    }
     companion object {
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
             if(uri.isAbsolute && uri.host == null && !httpHeaders.hasHost())
                 throw MissingHostHeader()
             if(!httpHeaders.hasHost())
                 httpHeaders.withHost(uri.host)
+            val bodyArray = body.toByteArray()
 
-            return HttpRequest(RequestLine(method, uri), httpHeaders, body)
+            return HttpRequest(RequestLine(method, uri), httpHeaders, HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size))
         }
     }
 
