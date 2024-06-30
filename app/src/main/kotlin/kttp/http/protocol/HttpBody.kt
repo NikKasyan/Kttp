@@ -6,6 +6,12 @@ import java.io.OutputStream
 
 class HttpBody(private val body: InputStream, val contentLength: Int? = null): InputStream() {
 
+    companion object {
+        fun fromString(body: String): HttpBody {
+
+            return HttpBody(body.byteInputStream(), body.length)
+        }
+    }
     fun hasContentLength(): Boolean {
         return contentLength != null
     }
