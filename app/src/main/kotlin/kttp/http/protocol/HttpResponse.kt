@@ -21,8 +21,30 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
 
         fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders, body: String = ""): HttpResponse {
             val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
+            if(!headers.hasContentLength())
+                headers.withContentLength(body.length)
             return HttpResponse(statusLine, headers, HttpBody.fromString(body))
         }
+
+        fun ok(headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
+            return fromStatus(HttpStatus.OK, headers, body)
+        }
+
+        fun badRequest(headers: HttpHeaders, body: HttpBody= HttpBody()): HttpResponse {
+            return fromStatus(HttpStatus.BAD_REQUEST, headers, body)
+        }
+
+        fun internalError(headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
+            return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, headers, body)
+        }
+
+        fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
+            val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
+            if(!headers.hasContentLength())
+                headers.withContentLength(body.contentLength!!)
+            return HttpResponse(statusLine, headers, body)
+        }
+
     }
 
     override fun toString(): String {
@@ -48,8 +70,8 @@ class HttpResponseStream(private val httpResponse: HttpResponse) : InputStream()
     private val statusLineAndHeaders: ByteArrayInputStream
 
     init {
-        val statusLineBytes = httpResponse.statusLine.toString().toByteArray(Charsets.UTF_8)
-        val headersBytes = httpResponse.headers.toString().toByteArray(Charsets.UTF_8)
+        val statusLineBytes = "${httpResponse.statusLine}\r\n".toByteArray(Charsets.UTF_8)
+        val headersBytes = "${httpResponse.headers}\r\n\r\n".toByteArray(Charsets.UTF_8)
         statusLineAndHeaders = ByteArrayInputStream(statusLineBytes + headersBytes)
     }
     override fun read(): Int {

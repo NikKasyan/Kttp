@@ -4,7 +4,7 @@ import kttp.net.IOStream
 import java.io.InputStream
 import java.io.OutputStream
 
-class HttpBody(private val body: InputStream, val contentLength: Int? = null): InputStream() {
+class HttpBody(private val body: InputStream = nullInputStream(), val contentLength: Int? = null): InputStream() {
 
     companion object {
         fun fromString(body: String): HttpBody {
