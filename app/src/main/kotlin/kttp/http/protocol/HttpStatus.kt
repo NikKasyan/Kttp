@@ -4,7 +4,7 @@ enum class HttpStatus(val code: Int, private val msg: String = "") {
     CONTINUE(100),
     SWITCHING_PROTOCOLS(101),
 
-    OK(200),
+    OK(200, "OK"),
     CREATED(201),
     ACCEPTED(202),
     NON_AUTHORITATIVE_INFORMATION(203, "Non-Authoritative Information"),
