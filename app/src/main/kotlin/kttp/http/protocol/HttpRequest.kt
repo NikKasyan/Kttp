@@ -35,7 +35,7 @@ class HttpRequest(
     init {
         if (!httpHeaders.hasHost())
             throw MissingHostHeader()
-        requestUri = combineToRequestUri(httpHeaders.getHost(), requestLine.requestTarget)
+        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.requestTarget)
     }
 
     private fun combineToRequestUri(host: String, requestTarget: URI): URI {

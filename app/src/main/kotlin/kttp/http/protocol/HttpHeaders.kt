@@ -31,7 +31,13 @@ object DateFormats {
 }
 
 //Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
-class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
+class HttpHeaders(headers: Map<String, String> = HashMap()) {
+
+    private val headers: MutableMap<String, String>
+
+    init {
+        this.headers = headers.toMutableMap()
+    }
 
     constructor(vararg headers: Pair<String, String>) : this() {
         add(*headers)
@@ -84,7 +90,7 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
     //////////////////////////////////////////////////////
 
     var contentLength: Int?
-        get() = if (hasContentLength()) getContentLength() else null
+        get() = if (hasContentLength()) contentLength() else null
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.CONTENT_LENGTH)
@@ -101,12 +107,12 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers.containsKey(CommonHeaders.CONTENT_LENGTH)
     }
 
-    fun getContentLength(): Int {
+    fun contentLength(): Int {
         return headers[CommonHeaders.CONTENT_LENGTH]!!.toInt()
     }
 
     var userAgent: String?
-        get() = if (hasUserAgent()) getUserAgent() else null
+        get() = if (hasUserAgent()) userAgent() else null
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.USER_AGENT)
@@ -123,12 +129,12 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers.containsKey(CommonHeaders.USER_AGENT)
     }
 
-    fun getUserAgent(): String {
+    fun userAgent(): String {
         return headers[CommonHeaders.USER_AGENT]!!
     }
 
     var host: String?
-        get() = if (hasHost()) getHost() else null
+        get() = if (hasHost()) host() else null
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.HOST)
@@ -145,12 +151,12 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers.containsKey(CommonHeaders.HOST)
     }
 
-    fun getHost(): String {
+    fun host(): String {
         return headers[CommonHeaders.HOST]!!
     }
 
     var acceptLanguage: String?
-        get() = if (hasAcceptLanguage()) getAcceptLanguage() else null
+        get() = if (hasAcceptLanguage()) acceptLanguage() else null
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.ACCEPT_LANGUAGE)
@@ -176,16 +182,16 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers.containsKey(CommonHeaders.ACCEPT_LANGUAGE)
     }
 
-    fun getAcceptLanguage(): String {
+    fun acceptLanguage(): String {
         return headers[CommonHeaders.ACCEPT_LANGUAGE]!!
     }
 
-    fun getAcceptLanguageAsList(): List<String> {
-        return getAcceptLanguage().split(", ").map { it.trim() }
+    fun acceptLanguageAsList(): List<String> {
+        return acceptLanguage().split(", ").map { it.trim() }
     }
 
     var transferEncoding: String?
-        get() = if (hasTransferEncoding()) getTransferEncoding() else null
+        get() = if (hasTransferEncoding()) transferEncoding() else null
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.TRANSFER_ENCODING)
@@ -202,16 +208,16 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers.containsKey(CommonHeaders.TRANSFER_ENCODING)
     }
 
-    fun getTransferEncoding(): String {
+    fun transferEncoding(): String {
         return headers[CommonHeaders.TRANSFER_ENCODING]!!
     }
 
-    fun getTransferEncodingAsList(): List<String> {
-        return getTransferEncoding().split(", ")
+    fun transferEncodingAsList(): List<String> {
+        return transferEncoding().split(", ")
     }
 
     var date: Date?
-        get() = if (hasDate()) getDate() else null
+        get() = if (hasDate()) date() else null
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.DATE)
@@ -238,7 +244,7 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         return headers.containsKey(CommonHeaders.DATE)
     }
 
-    fun getDate(dateFormat: DateFormat = DateFormats.createImfFixDateFormat()): Date? {
+    fun date(dateFormat: DateFormat = DateFormats.createImfFixDateFormat()): Date? {
         if (!hasDate())
             return null
         return try {
@@ -248,7 +254,7 @@ class HttpHeaders(private val headers: HashMap<String, String> = HashMap()) {
         }
     }
 
-    fun getDateAsString(): String = headers[CommonHeaders.DATE]!!
+    fun dateAsString(): String = headers[CommonHeaders.DATE]!!
 
     fun toList(): List<HttpHeader> {
         return headers.toList().map { HttpHeader(it) }

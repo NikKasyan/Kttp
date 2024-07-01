@@ -19,8 +19,8 @@ class HttpBody(private val body: InputStream, val contentLength: Int? = null): I
 
     //Todo: Handle also Transfer-Encoding https://www.rfc-editor.org/rfc/rfc9112#name-transfer-encoding
     fun readAsString(io: IOStream, headers: HttpHeaders): String {
-        if (headers.hasContentLength()) {
-            val contentLength = headers.getContentLength()
+        val contentLength = headers.contentLength ?: contentLength
+        if (contentLength != null) {
             return io.readBytes(contentLength).toString(Charsets.UTF_8)
         }
         return ""
