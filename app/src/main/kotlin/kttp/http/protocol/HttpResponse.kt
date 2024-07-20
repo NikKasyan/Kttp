@@ -1,7 +1,9 @@
 package kttp.http.protocol
 
+import kttp.net.IOStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+import java.nio.charset.Charset
 
 
 class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val body: HttpBody) {
@@ -59,19 +61,33 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
         return HttpResponseStream(this)
     }
 
+    fun writeTo(ioStream: IOStream) {
+        val stream = asStream()
+
+        val buffer = ByteArray(2048)
+
+        while (true) {
+            val read = stream.read(buffer)
+            if (read == -1)
+                break
+            ioStream.writeBytes(buffer)
+        }
+
+    }
+
 
 
 }
 
-class HttpResponseStream(private val httpResponse: HttpResponse) : InputStream() {
+class HttpResponseStream(private val httpResponse: HttpResponse, encoding: Charset = Charsets.UTF_8) : InputStream() {
 
     private var closed = false;
 
     private val statusLineAndHeaders: ByteArrayInputStream
 
     init {
-        val statusLineBytes = "${httpResponse.statusLine}\r\n".toByteArray(Charsets.UTF_8)
-        val headersBytes = "${httpResponse.headers}\r\n\r\n".toByteArray(Charsets.UTF_8)
+        val statusLineBytes = "${httpResponse.statusLine}\r\n".toByteArray(encoding)
+        val headersBytes = "${httpResponse.headers}\r\n\r\n".toByteArray(encoding)
         statusLineAndHeaders = ByteArrayInputStream(statusLineBytes + headersBytes)
     }
     override fun read(): Int {

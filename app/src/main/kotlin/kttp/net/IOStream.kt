@@ -33,6 +33,13 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
         output.flush()
     }
 
+    fun writeBytes(bytes: ByteArray) {
+        if (isClosed)
+            throw StreamAlreadyClosed()
+        output.write(bytes)
+        output.flush()
+    }
+
     fun readLine(): String {
         if (isClosed)
             throw StreamAlreadyClosed()
