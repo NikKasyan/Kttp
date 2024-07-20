@@ -19,10 +19,14 @@ class ClientConnection(private val socket: Socket, options: ConnectionOptions = 
 
     fun close() {
         if (!isClosed) {
-            socket.close()
             wasClosedManually = true
+            try {
+                socket.close()
+            } catch (e: Exception) {
+                //Ignore
+            }
+            io.close()
         }
-        io.close()
     }
 
 
