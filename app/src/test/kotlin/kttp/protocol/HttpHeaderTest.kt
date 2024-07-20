@@ -8,7 +8,7 @@ import org.junit.jupiter.api.assertThrows
 class HttpHeaderTest {
 
     @Test
-    fun shouldReplaceKey(){
+    fun headerStartingWithWhitespace_shouldThrowInvalidHeader(){
 
         assertThrows<InvalidHeaderName> {  HttpHeader(" Test" to "")}
         assertThrows<InvalidHeaderName> {  HttpHeader("\tTest" to "")}
