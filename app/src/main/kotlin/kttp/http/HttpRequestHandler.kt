@@ -16,19 +16,19 @@ class HttpRequestHandler {
     // suggests that the connection may send more than one request
     fun handle(io: IOStream): HttpRequest {
 
-        val requestLineString = io.readLine()
+        var requestLineString = io.readLine()
+        if(requestLineString.isEmpty()) // Got empty line try next line https://www.rfc-editor.org/rfc/rfc9112#section-2.2-6
+            requestLineString = io.readLine()
+
         val requestLine = RequestLine(requestLineString)
         log.debug { "Request Line: $requestLineString" }
+
         val headers = readHeaders(io)
-
         log.debug { "Headers: $headers" }
-
 
         checkHeaders(headers)
 
-
         val body = HttpBody(io, headers.contentLength)
-
         log.debug { "Body: $body" }
 
         return HttpRequest(requestLine, headers, body)
