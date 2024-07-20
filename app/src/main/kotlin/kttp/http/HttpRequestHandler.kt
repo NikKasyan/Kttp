@@ -2,6 +2,7 @@ package kttp.http
 
 import kttp.http.protocol.*
 import kttp.log.Logger
+import kttp.net.EndOfStream
 import kttp.net.IOStream
 
 
@@ -17,7 +18,7 @@ class HttpRequestHandler {
     fun handle(io: IOStream): HttpRequest {
 
         var requestLineString = io.readLine()
-        if(requestLineString.isEmpty()) // Got empty line try next line https://www.rfc-editor.org/rfc/rfc9112#section-2.2-6
+        if (requestLineString.isEmpty()) // Got empty line try next line https://www.rfc-editor.org/rfc/rfc9112#section-2.2-6
             requestLineString = io.readLine()
 
         val requestLine = RequestLine(requestLineString)
@@ -44,7 +45,12 @@ class HttpRequestHandler {
 
         var isFirstLine = true
         while (true) {
-            val header = io.readLine()
+            val header: String
+            try {
+                header = io.readLine()
+            } catch (e: EndOfStream) {
+                break
+            }
             if (header.isEmpty())
                 break
             try {

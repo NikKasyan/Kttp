@@ -28,15 +28,23 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
     }
 
     fun readLine(): String {
+
         val builder = StringBuilder()
+
+        var hasReadBytes = false
 
         while (true) {
             if (isBufferEmpty()) {
                 bytesRead = bufferedInputStream.read(buffer)
                 position = 0
 
-                if (bytesRead <= 0)
-                    return builder.toString()
+                if (bytesRead <= 0) {
+                    if (hasReadBytes)
+                        return builder.toString()
+                    else
+                        throw EndOfStream()
+                }
+                hasReadBytes = true
             }
             checkLineIsNotTooLong(builder.length, maxLineLengthInBytes)
 
