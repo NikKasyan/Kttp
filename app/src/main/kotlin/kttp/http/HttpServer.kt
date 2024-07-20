@@ -10,7 +10,7 @@ import java.util.Date
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-class HttpServer(private val port: Int, private val maxConcurrentConnections: Int = 20) {
+class HttpServer(private val port: Int, maxConcurrentConnections: Int = 20) {
 
 
     private lateinit var serverSocket: ServerSocket
@@ -84,7 +84,7 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
             // https://www.rfc-editor.org/rfc/rfc7230#page-14
         } catch (exception: Exception) {
             log.error { "Error: ${exception.message}" }
-            responseWithError(io, exception)
+            respondWithError(io, exception)
         } finally {
             log.info { "Closed connection." }
             io.close()
@@ -94,7 +94,7 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
 
     }
 
-    private fun responseWithError(io: IOStream, exception: Exception) {
+    private fun respondWithError(io: IOStream, exception: Exception) {
         val httpResponse = httpResponseFromException(exception)
         respond(httpResponse, io)
     }
@@ -119,8 +119,8 @@ class HttpServer(private val port: Int, private val maxConcurrentConnections: In
 
         addMandatoryHeadersIfMissing(httpResponse)
 
-        log.info { "Response $httpResponse" }
-        io.writeln(httpResponse.toString())
+        httpResponse.writeTo(io)
+
     }
 
     private fun addMandatoryHeadersIfMissing(httpResponse: HttpResponse) {
