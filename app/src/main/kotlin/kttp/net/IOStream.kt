@@ -1,48 +1,37 @@
 package kttp.net
 
-import java.io.*
-import java.net.Socket
+import java.io.BufferedOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.charset.Charset
-import java.time.Duration
+
 
 //Todo: Have to rewrite using bytes instead of strings and not using UTF-8 as standard charset
 // https://www.rfc-editor.org/rfc/rfc7230#page-19
-class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSeconds(0), charset: Charset = Charsets.UTF_8) : InputStream(), AutoCloseable {
+class IOStream(private val inputStream: InputStream,
+               private val outputStream: OutputStream,
+               private val charset: Charset,
+               maxLineLengthInBytes: Int) : InputStream(), AutoCloseable {
 
-    private val input = LineReader(socket.getInputStream())
-    private val output = BufferedOutputStream(socket.getOutputStream())
-
-    private var wasClosedManually: Boolean = false
-
-    init {
-        socket.soTimeout = timeout.toMillis().toInt()
-    }
-
-    private val isClosed
-        get() = wasClosedManually || !socket.isConnected || socket.isClosed ||
-                socket.isInputShutdown || socket.isOutputShutdown
+    private val input = LineReader(inputStream, maxLineLengthInBytes)
+    private val output = BufferedOutputStream(outputStream)
 
     fun writeln(string: String) {
         write("${string}\r\n")
     }
 
-    fun write(string: String, charset: Charset = Charsets.UTF_8) {
-        if (isClosed)
-            throw StreamAlreadyClosed()
+    fun write(string: String) {
         output.write(string.toByteArray(charset))
         output.flush()
     }
 
     fun writeBytes(bytes: ByteArray) {
-        if (isClosed)
-            throw StreamAlreadyClosed()
         output.write(bytes)
         output.flush()
     }
 
     fun readLine(): String {
-        if (isClosed)
-            throw StreamAlreadyClosed()
         try {
             return input.readLine() ?: throw EndOfStream()
         } catch (ioException: IOException) {
@@ -51,8 +40,6 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
     }
 
     fun readBytes(contentLength: Int): ByteArray {
-        if (isClosed)
-            throw StreamAlreadyClosed()
         val byteArray = ByteArray(contentLength)
         input.read(byteArray, 0, contentLength)
         return byteArray
@@ -63,10 +50,16 @@ class IOStream(private val socket: Socket, timeout: Duration = Duration.ofSecond
     }
 
     override fun close() {
-        wasClosedManually = true
-        socket.close()
-        input.close()
-        output.close()
+        try{
+            inputStream.close()
+        } catch (e: IOException) {
+            //Ignore
+        }
+        try{
+            outputStream.close()
+        } catch (e: IOException) {
+            //Ignore
+        }
     }
 
     /////////////////

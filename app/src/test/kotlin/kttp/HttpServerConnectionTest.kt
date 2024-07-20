@@ -1,7 +1,7 @@
 package kttp
 
 import kttp.http.HttpServer
-import kttp.net.IOStream
+import kttp.net.Connection
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -70,8 +70,8 @@ class HttpServerConnectionTest {
     fun connectWithClient_ThenDisconnect_Server_shouldNotFail() {
         startHttpServer()
         val socket = createSocket()
-        val io = IOStream(socket)
-        io.close()
+        val connection = Connection(socket)
+        connection.close()
         Thread.sleep(500)
         assertEquals(0, httpServer.activeConnections)
 

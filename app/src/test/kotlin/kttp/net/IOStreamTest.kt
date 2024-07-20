@@ -17,13 +17,13 @@ class IOStreamTest {
 
     private val defaultPort = 10000
     private lateinit var server: SimpleTestServer
-    private lateinit var client: IOStream
+    private lateinit var client: Connection
 
     @BeforeEach
     fun setup() {
         this.server = SimpleTestServer(defaultPort, 4)
         thread { this.server.acceptSocket() }
-        this.client = IOStream(Socket(InetAddress.getLocalHost(), defaultPort))
+        this.client = Connection(Socket(InetAddress.getLocalHost(), defaultPort))
     }
 
     @Test
@@ -31,10 +31,10 @@ class IOStreamTest {
         val message = "Hello"
         server.write(message)
         server.write(message)
-        var receivedMessage = client.readLine()
+        var receivedMessage = client.io.readLine()
 
         Assertions.assertEquals(message, receivedMessage)
-        receivedMessage = client.readLine()
+        receivedMessage = client.io.readLine()
 
         Assertions.assertEquals(message, receivedMessage)
     }
@@ -45,14 +45,14 @@ class IOStreamTest {
         server.write(message)
         server.write(message)
         server.write(message)
-        var receivedMessage = client.readLine()
+        var receivedMessage = client.io.readLine()
 
         Assertions.assertEquals(message, receivedMessage)
 
-        receivedMessage = client.readBytesAsString(message.length + 2)
+        receivedMessage = client.io.readBytesAsString(message.length + 2)
 
         Assertions.assertEquals(message+"\r\n", receivedMessage)
-        receivedMessage = client.readLine()
+        receivedMessage = client.io.readLine()
 
         Assertions.assertEquals(message, receivedMessage)
     }
@@ -60,8 +60,8 @@ class IOStreamTest {
     @Test
     fun clientWritesTwoLines_ServerReceivesTwo() {
         val message = "Hello"
-        client.write(message + "\r\n")
-        client.write(message + "\r\n")
+        client.io.write(message + "\r\n")
+        client.io.write(message + "\r\n")
         var receivedMessage = server.readLine()
         Assertions.assertEquals(message, receivedMessage)
         receivedMessage = server.readLine()
@@ -71,14 +71,14 @@ class IOStreamTest {
     @Test
     fun serverWrites_clientReads_serverStops_shouldThrowEndOfStream() {
         thread { Thread.sleep(500); server.stop() }
-        assertThrows<EndOfStream> { client.readLine() }
+        assertThrows<EndOfStream> { client.io.readLine() }
     }
 
     @Test
     fun serverWritesToClosedStream_shouldThrowStreamAlreadyClosed() {
         client.close()
         server.write("Test")
-        assertThrows<StreamAlreadyClosed> { client.readLine() }
+        assertThrows<StreamAlreadyClosed> { client.io.readLine() }
 
     }
 

@@ -6,7 +6,7 @@ import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import kotlin.math.min
 
-class LineReader(inputStream: InputStream): InputStream() {
+class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int = 8192) : InputStream() {
     private val bufferedInputStream = BufferedInputStream(inputStream)
     private val buffer = ByteArray(4096)
     private var bytesRead: Int = 0
@@ -26,11 +26,11 @@ class LineReader(inputStream: InputStream): InputStream() {
         return buffer[0].toInt()
 
     }
+
     fun readLine(): String {
         val builder = StringBuilder()
 
         while (true) {
-
             if (isBufferEmpty()) {
                 bytesRead = bufferedInputStream.read(buffer)
                 position = 0
@@ -38,6 +38,7 @@ class LineReader(inputStream: InputStream): InputStream() {
                 if (bytesRead <= 0)
                     return builder.toString()
             }
+            checkLineIsNotTooLong(builder.length, maxLineLengthInBytes)
 
             val currentByte = buffer[position++]
 
@@ -62,7 +63,7 @@ class LineReader(inputStream: InputStream): InputStream() {
         return byteArray
     }
 
-    private fun read(buffer: ByteArray, contentLength: Int): Int{
+    private fun read(buffer: ByteArray, contentLength: Int): Int {
         return read(buffer, 0, contentLength)
     }
 
@@ -97,3 +98,10 @@ class LineReader(inputStream: InputStream): InputStream() {
     }
 
 }
+
+private fun checkLineIsNotTooLong(readBytes: Int, maxLineLengthInBytes: Int) {
+    if (readBytes > maxLineLengthInBytes)
+        throw LineTooLongException("Line is longer than $maxLineLengthInBytes bytes")
+}
+
+class LineTooLongException(msg: String) : RuntimeException(msg)
