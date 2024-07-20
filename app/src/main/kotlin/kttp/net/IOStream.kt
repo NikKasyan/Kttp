@@ -11,8 +11,8 @@ import java.nio.charset.Charset
 // https://www.rfc-editor.org/rfc/rfc7230#page-19
 class IOStream(private val inputStream: InputStream,
                private val outputStream: OutputStream,
-               private val charset: Charset,
-               maxLineLengthInBytes: Int) : InputStream(), AutoCloseable {
+               private val charset: Charset = Charsets.UTF_8,
+               maxLineLengthInBytes: Int = 8192) : InputStream(), AutoCloseable {
 
     private val input = LineReader(inputStream, maxLineLengthInBytes)
     private val output = BufferedOutputStream(outputStream)
