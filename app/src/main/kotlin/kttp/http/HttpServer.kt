@@ -2,7 +2,7 @@ package kttp.http
 
 import kttp.http.protocol.*
 import kttp.log.Logger
-import kttp.net.Connection
+import kttp.net.ClientConnection
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
@@ -68,14 +68,14 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
     private fun handleSocket(socket: Socket) {
 
         numberOfConnections.incrementAndGet()
-        val connection = Connection(socket)
+        val clientConnection = ClientConnection(socket)
 
         try {
             //Todo: Handle any errors that might occur during requests
-            val httpRequest = HttpRequestHandler().handle(connection.io)
+            val httpRequest = HttpRequestHandler().handle(clientConnection.io)
 
 
-            respond(httpRequest, connection)
+            respond(httpRequest, clientConnection)
 
 
             //Todo: If major version is not supported by this server
@@ -85,19 +85,19 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
             // https://www.rfc-editor.org/rfc/rfc7230#page-14
         } catch (exception: Exception) {
             log.error { "Error: ${exception.message}" }
-            respondWithError(connection, exception)
+            respondWithError(clientConnection, exception)
         } finally {
             log.info { "Closed connection." }
-            connection.close()
+            clientConnection.close()
             numberOfConnections.decrementAndGet()
             openConnections.remove(socket)
         }
 
     }
 
-    private fun respondWithError(connection: Connection, exception: Exception) {
+    private fun respondWithError(clientConnection: ClientConnection, exception: Exception) {
         val httpResponse = httpResponseFromException(exception)
-        respond(httpResponse, connection)
+        respond(httpResponse, clientConnection)
     }
 
     private fun httpResponseFromException(exception: Exception) = when (exception) {
@@ -110,17 +110,17 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
             HttpResponse.internalError(body = exception.message ?: "No message")
     }
 
-    private fun respond(httpRequest: HttpRequest, connection: Connection) {
+    private fun respond(httpRequest: HttpRequest, clientConnection: ClientConnection) {
         val status = StatusLine(HttpVersion(1, 1), HttpStatus.OK)
         val httpResponse = HttpResponse(status, HttpHeaders(), httpRequest.body)
-        respond(httpResponse, connection)
+        respond(httpResponse, clientConnection)
     }
 
-    private fun respond(httpResponse: HttpResponse, connection: Connection) {
+    private fun respond(httpResponse: HttpResponse, clientConnection: ClientConnection) {
 
         addMandatoryHeadersIfMissing(httpResponse)
 
-        httpResponse.writeTo(connection.io)
+        httpResponse.writeTo(clientConnection.io)
 
     }
 

@@ -5,7 +5,7 @@ import java.nio.charset.Charset
 import java.time.Duration
 
 val DEFAULT_OPTIONS = ConnectionOptions()
-class Connection(private val socket: Socket, options: ConnectionOptions = DEFAULT_OPTIONS) {
+class ClientConnection(private val socket: Socket, options: ConnectionOptions = DEFAULT_OPTIONS) {
 
     private var wasClosedManually: Boolean = false
     val io = IOStream(socket.getInputStream(), socket.getOutputStream(), options.charset, options.maxLineLengthInBytes)

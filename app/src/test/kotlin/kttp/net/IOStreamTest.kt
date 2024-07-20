@@ -17,13 +17,13 @@ class IOStreamTest {
 
     private val defaultPort = 10000
     private lateinit var server: SimpleTestServer
-    private lateinit var client: Connection
+    private lateinit var client: ClientConnection
 
     @BeforeEach
     fun setup() {
         this.server = SimpleTestServer(defaultPort, 4)
         thread { this.server.acceptSocket() }
-        this.client = Connection(Socket(InetAddress.getLocalHost(), defaultPort))
+        this.client = ClientConnection(Socket(InetAddress.getLocalHost(), defaultPort))
     }
 
     @Test
