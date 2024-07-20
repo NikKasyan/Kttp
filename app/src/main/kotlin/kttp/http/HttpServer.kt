@@ -10,7 +10,7 @@ import java.util.Date
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-class HttpServer(private val port: Int, maxConcurrentConnections: Int = 20) {
+class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20) {
 
 
     private lateinit var serverSocket: ServerSocket
