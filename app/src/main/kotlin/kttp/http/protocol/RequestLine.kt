@@ -1,19 +1,11 @@
 package kttp.http.protocol
 
 import java.net.URI
-import java.net.URISyntaxException
-import java.net.URLDecoder
 
 class RequestLine {
 
     val method: Method
-    var requestTarget: URI
-        private set(value) {
-            field = if(value.isAbsolute)
-                URIUtil.normalizeURI(value)
-            else
-                value
-        }
+    val requestTarget: URI
     val httpVersion: HttpVersion
 
     constructor(requestString: String) {
@@ -25,13 +17,13 @@ class RequestLine {
         val (methodString, path, httpVersionString) = requestParts
 
         method = Method.byName(methodString)
-        this.requestTarget = URIUtil.parseURI(path)
+        requestTarget = normalizeIfPathIsNotAbsolute(URIUtil.parseURI(path))
         httpVersion = HttpVersion(httpVersionString)
     }
 
     constructor(method: Method, uri: URI, httpVersion: HttpVersion = HttpVersion.DEFAULT_VERSION) {
         this.method = method
-        this.requestTarget = uri
+        this.requestTarget = normalizeIfPathIsNotAbsolute(uri)
         this.httpVersion = httpVersion
     }
 
@@ -39,11 +31,16 @@ class RequestLine {
         return "$method $requestTarget $httpVersion\r\n"
     }
 
+    private fun normalizeIfPathIsNotAbsolute(uri: URI): URI {
+        return if (uri.isAbsolute)
+            URIUtil.normalizeURI(uri)
+        else
+            uri
+    }
+
 }
 
-open class InvalidHttpRequestLine(msg: String) : InvalidHttpRequest(msg) {
-
-}
+open class InvalidHttpRequestLine(msg: String) : InvalidHttpRequest(msg)
 
 class UnknownHttpMethod(msg: String) : InvalidHttpRequestLine(msg)
 class InvalidRequestPath(msg: String) : InvalidHttpRequestLine(msg)
