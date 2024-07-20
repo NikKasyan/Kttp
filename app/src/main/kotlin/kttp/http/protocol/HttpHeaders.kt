@@ -39,17 +39,6 @@ fun checkHeaderNotContainsBareCR(header: HttpHeader) {
         throw InvalidHeader("Header value may not contain a bare CR")
 }
 
-fun hasBareCR(string: String): Boolean {
-    for (i in string.indices) {
-        if (string[i] == '\r') {
-            if (i + 1 >= string.length || string[i + 1] != '\n') {
-                return true
-            }
-        }
-    }
-    return false
-}
-
 //Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
 class HttpHeaders(headers: Map<String, String> = HashMap()) {
 
@@ -81,7 +70,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     fun add(header: HttpHeader): HttpHeaders {
         if (header.key == CommonHeaders.HOST && hasHost()) // https://www.rfc-editor.org/rfc/rfc9112#section-3.2-6
             throw InvalidHeader("May not contain multiple Host Fields")
-        checkHeaderNotContainsBareCR(header)
+        checkHeaderNotContainsBareCR(header) // https://www.rfc-editor.org/rfc/rfc9112#name-message-parsing
         headers[header.key] = header.value
         return this
     }

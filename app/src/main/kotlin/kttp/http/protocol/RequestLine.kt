@@ -16,6 +16,8 @@ class RequestLine {
 
         val (methodString, path, httpVersionString) = requestParts
 
+        checkRequestLineNotContainsBareCR(methodString, path, httpVersionString)
+
         method = Method.byName(methodString)
         requestTarget = normalizeIfPathIsNotAbsolute(URIUtil.parseURI(path))
         httpVersion = HttpVersion(httpVersionString)
@@ -38,6 +40,15 @@ class RequestLine {
             uri
     }
 
+}
+// Check if the string contains a bare CR https://www.rfc-editor.org/rfc/rfc9112#name-message-parsing
+private fun checkRequestLineNotContainsBareCR(methodString: String, pathString: String, httpVersionString: String) {
+    if (hasBareCR(methodString))
+        throw InvalidHttpRequestLine("Method must not contain bare CR")
+    if (hasBareCR(pathString))
+        throw InvalidHttpRequestLine("Path must not contain bare CR")
+    if (hasBareCR(httpVersionString))
+        throw InvalidHttpRequestLine("HTTP-Version must not contain bare CR")
 }
 
 open class InvalidHttpRequestLine(msg: String) : InvalidHttpRequest(msg)

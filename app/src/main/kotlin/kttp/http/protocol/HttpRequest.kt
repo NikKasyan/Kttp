@@ -55,8 +55,20 @@ class HttpRequest(
     }
 }
 
+fun hasBareCR(string: String): Boolean {
+    for (i in string.indices) {
+        if (string[i] == '\r') {
+            if (i + 1 >= string.length || string[i + 1] != '\n') {
+                return true
+            }
+        }
+    }
+    return false
+}
+
 object GetRequest {
     fun from(uri: URI, httpHeaders: HttpHeaders = HttpHeaders()): HttpRequest {
         return HttpRequest.from(Method.GET, uri, httpHeaders)
     }
 }
+
