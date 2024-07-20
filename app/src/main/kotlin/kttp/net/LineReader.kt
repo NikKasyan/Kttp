@@ -40,7 +40,7 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
             }
             checkLineIsNotTooLong(builder.length, maxLineLengthInBytes)
 
-            val currentByte = buffer[position++]
+            val currentByte: Byte = buffer[position++]
 
             if (currentByte == CARRIAGE_RETURN) {
                 continue
@@ -48,7 +48,7 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
                 return builder.toString()
             }
 
-            builder.append(currentByte)
+            builder.append(currentByte.toInt().toChar())
         }
     }
 
