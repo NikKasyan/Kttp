@@ -30,6 +30,26 @@ object DateFormats {
     }
 }
 
+
+
+fun checkHeaderNotContainsBareCR(header: HttpHeader) {
+    if (hasBareCR(header.key))
+        throw InvalidHeader("Header key may not contain a bare CR")
+    if (hasBareCR(header.value))
+        throw InvalidHeader("Header value may not contain a bare CR")
+}
+
+fun hasBareCR(string: String): Boolean {
+    for (i in string.indices) {
+        if (string[i] == '\r') {
+            if (i + 1 >= string.length || string[i + 1] != '\n') {
+                return true
+            }
+        }
+    }
+    return false
+}
+
 //Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
 class HttpHeaders(headers: Map<String, String> = HashMap()) {
 
@@ -61,6 +81,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     fun add(header: HttpHeader): HttpHeaders {
         if (header.key == CommonHeaders.HOST && hasHost()) // https://www.rfc-editor.org/rfc/rfc9112#section-3.2-6
             throw InvalidHeader("May not contain multiple Host Fields")
+        checkHeaderNotContainsBareCR(header)
         headers[header.key] = header.value
         return this
     }
