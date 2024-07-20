@@ -39,11 +39,17 @@ class HttpRequest(
     }
 
     private fun combineToRequestUri(host: String, requestTarget: URI): URI {
+        val port = if(host.contains(":"))
+            host.substringAfter(":").toInt()
+        else
+            -1
+
+        val hostWithNoPort = host.substringBefore(":")
         return URI(
             "http",
             null,
-            host,
-            -1,
+            hostWithNoPort,
+            port,
             requestTarget.path,
             requestTarget.query,
             requestTarget.fragment

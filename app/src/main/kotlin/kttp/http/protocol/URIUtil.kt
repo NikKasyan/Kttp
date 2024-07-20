@@ -14,7 +14,7 @@ object URIUtil {
     fun normalizeURI(uri: URI): URI {
         return URI(
             uri.scheme.lowercase(), // https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3-4.3
-            "", // Shouldn't be set
+            null, // Shouldn't be set
             uri.host.lowercase(), // https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3-4.3
             getPortByScheme(uri.scheme!!, uri.port),
             urlDecode(getPath(uri.path)),
@@ -39,7 +39,7 @@ object URIUtil {
         return path
     }
 
-    fun urlDecode(string: String) = URLDecoder.decode(string, Charsets.UTF_8)
+    fun urlDecode(string: String?) = if(string != null) URLDecoder.decode(string, Charsets.UTF_8) else null
 
     //Todo: Implement rest of https://www.rfc-editor.org/rfc/rfc7230#section-5.3
     fun parseURI(path: String): URI {
