@@ -13,6 +13,8 @@ class Logger(clazz: Class<*>) {
     fun info(format: String, vararg arguments: Any) = log.info(format, arguments)
     fun warn(format: String, vararg arguments: Any) = log.warn(format, arguments)
     fun error(format: String, vararg arguments: Any) = log.error(format, arguments)
+
+    fun error(throwable: Throwable, format: String) = log.error(format, throwable)
     fun debug(format: String, vararg arguments: Any) = log.debug(format, arguments)
 
     fun trace(messageSupplier: () -> String){

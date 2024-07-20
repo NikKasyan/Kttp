@@ -84,7 +84,8 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
             //   to refuse service of the client's major protocol version.
             // https://www.rfc-editor.org/rfc/rfc7230#page-14
         } catch (exception: Exception) {
-            log.error { "Error: ${exception.message}" }
+            log.error("Error", exception)
+            exception.printStackTrace()
             respondWithError(clientConnection, exception)
         } finally {
             log.info { "Closed connection." }
