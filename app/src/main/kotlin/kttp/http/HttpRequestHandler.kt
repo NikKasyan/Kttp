@@ -2,8 +2,8 @@ package kttp.http
 
 import kttp.http.protocol.*
 import kttp.log.Logger
-import kttp.net.EndOfStream
 import kttp.net.IOStream
+import kttp.net.LineTooLongException
 
 
 private val startsWithWhiteSpace = Regex("^\\s+")
@@ -17,25 +17,37 @@ class HttpRequestHandler {
     // suggests that the connection may send more than one request
     fun handle(io: IOStream): HttpRequest {
 
-        var requestLineString = io.readLine()
-        if (requestLineString.isEmpty()) // Got empty line try next line https://www.rfc-editor.org/rfc/rfc9112#section-2.2-6
-            requestLineString = io.readLine()
-
-        val requestLine = RequestLine(requestLineString)
-        log.debug { "Request Line: $requestLineString" }
+        val requestLine = readRequestLine(io)
 
         val headers = readHeaders(io)
-        log.debug { "Headers: $headers" }
 
         checkHeaders(headers)
 
-        val body =
-            if (requestLine.method.allowsBody())
-                HttpBody(io, headers.contentLength)
-            else HttpBody.empty()
-        log.debug { "Body: $body" }
+        val body = readBody(io, requestLine, headers)
 
         return HttpRequest(requestLine, headers, body)
+    }
+
+    private fun readRequestLine(io: IOStream): RequestLine {
+
+        var requestLineString: String
+        try {
+            requestLineString = io.readLine()
+            if (requestLineString.isEmpty()) // Got empty line try next line https://www.rfc-editor.org/rfc/rfc9112#section-2.2-6
+                requestLineString = io.readLine()
+        } catch (e: LineTooLongException) {
+            val line = e.line
+            val parts = line.split(" ")
+            if (parts.size == 2) {
+                throw UriTooLong()
+            } else {
+                throw RequestLineTooLong()
+            }
+        }
+
+        val requestLine = RequestLine(requestLineString)
+        log.debug { "Request Line: $requestLineString" }
+        return requestLine
     }
 
     private fun checkHeaders(headers: HttpHeaders) {
@@ -63,9 +75,19 @@ class HttpRequestHandler {
                     throw HeaderStartsWithWhiteSpace()
             }
         }
+        log.debug { "Headers: $headers" }
         return headers
     }
 
+    private fun readBody(io: IOStream, requestLine: RequestLine, headers: HttpHeaders): HttpBody {
+
+        val body = if (requestLine.method.allowsBody())
+            HttpBody(io, headers.contentLength)
+        else HttpBody.empty()
+
+        log.debug { "Body: $body" }
+        return body
+    }
 }
 
 class MissingHostHeader : InvalidHttpRequest("Missing Host Header")

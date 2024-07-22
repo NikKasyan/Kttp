@@ -57,3 +57,7 @@ class UnknownHttpMethod(msg: String) : InvalidHttpRequestLine(msg)
 class InvalidRequestPath(msg: String) : InvalidHttpRequestLine(msg)
 
 class InvalidHttpRequestStructure(msg: String) : InvalidHttpRequestLine(msg)
+
+class RequestLineTooLong : InvalidHttpRequestLine("Request Line is too long")
+
+class UriTooLong : InvalidHttpRequestLine("URI is too long")

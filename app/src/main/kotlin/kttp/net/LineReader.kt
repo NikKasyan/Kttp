@@ -46,7 +46,7 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
                 }
                 hasReadBytes = true
             }
-            checkLineIsNotTooLong(builder.length, maxLineLengthInBytes)
+            checkLineIsNotTooLong(builder, maxLineLengthInBytes)
 
             val currentByte: Byte = buffer[position++]
 
@@ -107,9 +107,11 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
 
 }
 
-private fun checkLineIsNotTooLong(readBytes: Int, maxLineLengthInBytes: Int) {
-    if (readBytes > maxLineLengthInBytes)
-        throw LineTooLongException("Line is longer than $maxLineLengthInBytes bytes")
+private fun checkLineIsNotTooLong(readLine: StringBuilder, maxLineLengthInBytes: Int) {
+    if (readLine.length > maxLineLengthInBytes)
+        throw LineTooLongException("Line is longer than $maxLineLengthInBytes bytes", readLine.toString())
 }
 
-class LineTooLongException(msg: String) : RuntimeException(msg)
+class LineTooLongException(msg: String, val line: String) : RuntimeException(msg) {
+
+}
