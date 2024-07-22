@@ -21,7 +21,13 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
             return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, headers, body)
         }
 
-        fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders, body: String = ""): HttpResponse {
+        fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders = HttpHeaders(), body: HttpBody = HttpBody()): HttpResponse {
+            val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
+            if(!headers.hasContentLength())
+                headers.withContentLength(body.contentLength!!)
+            return HttpResponse(statusLine, headers, body)
+        }
+        fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
             val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
             if(!headers.hasContentLength())
                 headers.withContentLength(body.length)
@@ -38,13 +44,6 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
 
         fun internalError(headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
             return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, headers, body)
-        }
-
-        fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
-            val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
-            if(!headers.hasContentLength())
-                headers.withContentLength(body.contentLength!!)
-            return HttpResponse(statusLine, headers, body)
         }
 
     }
