@@ -43,7 +43,7 @@ class IOStream(private val inputStream: InputStream,
         if(isClosed)
             throw StreamAlreadyClosed()
         try {
-            return input.readLine() ?: throw EndOfStream()
+            return input.readLine() ?: ""
         } catch (ioException: IOException) {
             throw EndOfStream()
         }
@@ -160,6 +160,6 @@ class IOStream(private val inputStream: InputStream,
     }
 }
 
-class EndOfStream : RuntimeException()
+class EndOfStream : RuntimeException("End of Stream")
 
-class StreamAlreadyClosed : RuntimeException()
+class StreamAlreadyClosed : RuntimeException("Stream already closed")
