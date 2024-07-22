@@ -29,7 +29,10 @@ class HttpRequestHandler {
 
         checkHeaders(headers)
 
-        val body = HttpBody(io, headers.contentLength)
+        val body =
+            if (requestLine.method.allowsBody())
+                HttpBody(io, headers.contentLength)
+            else HttpBody.empty()
         log.debug { "Body: $body" }
 
         return HttpRequest(requestLine, headers, body)
@@ -45,12 +48,7 @@ class HttpRequestHandler {
 
         var isFirstLine = true
         while (true) {
-            val header: String
-            try {
-                header = io.readLine()
-            } catch (e: EndOfStream) {
-                break
-            }
+            val header = io.readLine()
             if (header.isEmpty())
                 break
             try {
