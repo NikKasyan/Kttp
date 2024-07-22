@@ -1,8 +1,9 @@
 package kttp.http.protocol
 
-import kttp.net.IOStream
+import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream
+
 
 class HttpBody(private val body: InputStream = nullInputStream(), val contentLength: Int? = null): InputStream() {
 
@@ -11,6 +12,13 @@ class HttpBody(private val body: InputStream = nullInputStream(), val contentLen
 
             return HttpBody(body.byteInputStream(), body.length)
         }
+        fun fromBytes(body: ByteArray): HttpBody {
+            return HttpBody(ByteArrayInputStream(body), body.size)
+        }
+        fun empty(): HttpBody {
+            return HttpBody()
+        }
+
     }
     fun hasContentLength(): Boolean {
         return contentLength != null
@@ -18,12 +26,8 @@ class HttpBody(private val body: InputStream = nullInputStream(), val contentLen
 
 
     //Todo: Handle also Transfer-Encoding https://www.rfc-editor.org/rfc/rfc9112#name-transfer-encoding
-    fun readAsString(io: IOStream, headers: HttpHeaders): String {
-        val contentLength = headers.contentLength ?: contentLength
-        if (contentLength != null) {
-            return io.readBytes(contentLength).toString(Charsets.UTF_8)
-        }
-        return ""
+    fun readAsString(): String {
+        return readAllBytes().toString(Charsets.UTF_8)
     }
 
     //////////////////
