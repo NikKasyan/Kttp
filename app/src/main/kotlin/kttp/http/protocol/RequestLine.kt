@@ -12,7 +12,7 @@ class RequestLine {
         val requestParts = requestString.split(" ")
 
         if (requestParts.size != 3)
-            throw InvalidHttpRequestStructure("Http Request has to have the structure \"METHOD PATH HTTP-Version\"")
+            throw InvalidHttpRequestStructure("Http Request has to have the structure \"METHOD PATH HTTP-Version\". Invalid: $requestString")
 
         val (methodString, path, httpVersionString) = requestParts
 
