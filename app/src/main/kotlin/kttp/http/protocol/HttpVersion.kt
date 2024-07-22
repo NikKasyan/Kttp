@@ -35,6 +35,16 @@ class HttpVersion {
         return "$HTTP_START$majorVersion.$minorVersion"
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is HttpVersion) return false
+
+        if (majorVersion != other.majorVersion) return false
+        if (minorVersion != other.minorVersion) return false
+
+        return true
+    }
+
 }
 
 class InvalidHttpVersion(msg: String) : InvalidHttpRequest(msg)
