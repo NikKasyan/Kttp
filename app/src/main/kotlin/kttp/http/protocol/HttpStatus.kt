@@ -54,5 +54,12 @@ enum class HttpStatus(val code: Int, private val msg: String = "") {
             return msg
         }
 
+    companion object {
+        fun byCode(code: Int): HttpStatus {
+            return values().find { it.code == code } ?: throw InvalidHttpStatus("No status found for code $code")
+        }
+    }
 
 }
+
+class InvalidHttpStatus(msg: String) : RuntimeException(msg)
