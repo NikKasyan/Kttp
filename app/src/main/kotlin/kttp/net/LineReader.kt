@@ -27,7 +27,7 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
 
     }
 
-    fun readLine(): String {
+    fun readLine(): String? {
 
         val builder = StringBuilder()
 
@@ -39,10 +39,10 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
                 position = 0
 
                 if (bytesRead <= 0) {
-                    if (hasReadBytes)
-                        return builder.toString()
+                    return if (hasReadBytes)
+                        builder.toString()
                     else
-                        throw EndOfStream()
+                        null
                 }
                 hasReadBytes = true
             }
