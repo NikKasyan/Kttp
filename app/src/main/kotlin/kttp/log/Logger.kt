@@ -14,7 +14,13 @@ class Logger(clazz: Class<*>) {
     fun warn(format: String, vararg arguments: Any) = log.warn(format, arguments)
     fun error(format: String, vararg arguments: Any) = log.error(format, arguments)
 
-    fun error(throwable: Throwable, format: String) = log.error(format, throwable)
+    fun error(throwable: Throwable) {
+        log.error("", throwable)
+    }
+    fun error(throwable: Throwable, messageSupplier: () -> String) {
+        if(log.isErrorEnabled)
+            log.error(messageSupplier(), throwable)
+    }
     fun debug(format: String, vararg arguments: Any) = log.debug(format, arguments)
 
     fun trace(messageSupplier: () -> String){

@@ -84,8 +84,7 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
             //   to refuse service of the client's major protocol version.
             // https://www.rfc-editor.org/rfc/rfc7230#page-14
         } catch (exception: Exception) {
-            log.error("Error", exception)
-            exception.printStackTrace()
+            log.error(exception)
             respondWithError(clientConnection, exception)
         } finally {
             log.info { "Closed connection." }
@@ -102,6 +101,7 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
     }
 
     private fun httpResponseFromException(exception: Exception) = when (exception) {
+        is UnknownHttpMethod -> HttpResponse.fromStatus(HttpStatus.METHOD_NOT_ALLOWED, body = exception.message ?: "No message")
         is HeaderNameEndsWithWhiteSpace,
         is InvalidHttpRequestLine,
         is HeaderStartsWithWhiteSpace,
