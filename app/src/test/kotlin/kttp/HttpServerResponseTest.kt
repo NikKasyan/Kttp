@@ -24,7 +24,7 @@ class HttpServerResponseTest {
             server = HttpServer(port)
             server.start()
         }
-        Thread.sleep(500)
+        Thread.sleep(300)
         client = ClientConnection(Socket("localhost", port))
     }
 
@@ -40,19 +40,19 @@ class HttpServerResponseTest {
         assertEquals(HttpStatus.METHOD_NOT_ALLOWED.message, statusLine.message)
     }
 
-@Test
-fun tooLongUri_shouldRespondWith414UriTooLong() {
-    val uri = "/".repeat(10000)
-    client.io.writeln("GET $uri HTTP/1.1")
+    @Test
+    fun tooLongUri_shouldRespondWith414UriTooLong() {
+        val uri = "/".repeat(10000)
+        client.io.writeln("GET $uri HTTP/1.1")
 
-    val statusLineString = client.io.readLine()
-    val statusLine = StatusLine(statusLineString)
+        val statusLineString = client.io.readLine()
+        val statusLine = StatusLine(statusLineString)
 
-    assertEquals(HttpVersion.DEFAULT_VERSION, statusLine.httpVersion)
-    assertEquals(HttpStatus.REQUEST_URI_TOO_LARGE, statusLine.status)
-    assertEquals(HttpStatus.REQUEST_URI_TOO_LARGE.message, statusLine.message)
+        assertEquals(HttpVersion.DEFAULT_VERSION, statusLine.httpVersion)
+        assertEquals(HttpStatus.REQUEST_URI_TOO_LARGE, statusLine.status)
+        assertEquals(HttpStatus.REQUEST_URI_TOO_LARGE.message, statusLine.message)
 
-}
+    }
 
     @AfterEach
     fun tearDown() {
