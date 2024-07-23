@@ -29,6 +29,8 @@ class RequestLine {
         this.httpVersion = httpVersion
     }
 
+    constructor(method: Method, uri: String, httpVersion: HttpVersion) : this(method, URI(uri), httpVersion)
+
     override fun toString(): String {
         return "$method $requestTarget $httpVersion\r\n"
     }
