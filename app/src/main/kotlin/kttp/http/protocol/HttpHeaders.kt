@@ -13,6 +13,7 @@ object CommonHeaders {
     const val ACCEPT_LANGUAGE = "Accept-Language"
     const val TRANSFER_ENCODING = "Transfer-Encoding"
     const val DATE = "Date"
+    const val ACCEPT = "Accept"
     //Todo: Add missing Common Headers
     // Trailer: https://www.rfc-editor.org/rfc/rfc9110#name-trailer
 
@@ -266,12 +267,58 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
 
     fun dateAsString(): String = headers[CommonHeaders.DATE]!!
 
+    var accept: String?
+        get() = if (hasAccept()) accept() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.ACCEPT)
+            else
+                withAccept(value)
+        }
+
+    fun withAccept(accept: String): HttpHeaders {
+        headers[CommonHeaders.ACCEPT] = accept
+        return this
+    }
+
+    fun withAccepts(vararg accepts: String): HttpHeaders {
+        return withAccepts(accepts.toList())
+    }
+
+    fun withAccepts(accepts: List<String>): HttpHeaders {
+        return withAccepts(accepts.joinToString() )
+    }
+
+    fun hasAccept(): Boolean {
+        return headers.containsKey(CommonHeaders.ACCEPT)
+    }
+
+    fun accept(): String {
+        return headers[CommonHeaders.ACCEPT]!!
+    }
+
+    fun acceptAsList(): List<String> {
+        return accept().split(", ")
+    }
+
+
     fun toList(): List<HttpHeader> {
         return headers.toList().map { HttpHeader(it) }
     }
 
     override fun toString(): String {
         return toList().joinToString("\r\n")
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as HttpHeaders
+
+        if (headers != other.headers) return false
+
+        return true
     }
 
 }
