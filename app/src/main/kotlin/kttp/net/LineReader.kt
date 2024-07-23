@@ -27,11 +27,9 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
 
     }
 
-    fun readLine(): String? {
+    fun readLine(): String {
 
-        val builder = StringBuilder()
-
-        var hasReadBytes = false
+        val byteBuffer = ByteBuffer(maxLineLengthInBytes)
 
         while (true) {
             if (isBufferEmpty()) {
@@ -39,24 +37,32 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
                 position = 0
 
                 if (bytesRead <= 0) {
-                    return if (hasReadBytes)
-                        builder.toString()
-                    else
-                        null
+                    return byteBuffer.toString()
                 }
-                hasReadBytes = true
+
             }
-            checkLineIsNotTooLong(builder, maxLineLengthInBytes)
+            val startPosition = position
 
-            val currentByte: Byte = buffer[position++]
-
-            if (currentByte == CARRIAGE_RETURN) {
-                continue
-            } else if (currentByte == NEW_LINE) {
-                return builder.toString()
+            var readCr = 0
+            while(!isBufferEmpty()) {
+                val currentByte: Byte = buffer[position++]
+                val bytesToAdd = position - startPosition
+                if (byteBuffer.exceedsMaxCapacity(bytesToAdd)) {
+                    throw LineTooLongException("Line exceeds max length of $maxLineLengthInBytes", byteBuffer.toString())
+                }
+                readCr = when(currentByte) {
+                    CARRIAGE_RETURN -> 1
+                    NEW_LINE -> {
+                        byteBuffer.tryAppend(buffer, startPosition, bytesToAdd - (1 + readCr))
+                        return byteBuffer.toString()
+                    }
+                    else ->
+                        0
+                }
             }
 
-            builder.append(currentByte.toInt().toChar())
+            byteBuffer.tryAppend(buffer, startPosition, position - startPosition)
+
         }
     }
 
@@ -107,11 +113,28 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
 
 }
 
-private fun checkLineIsNotTooLong(readLine: StringBuilder, maxLineLengthInBytes: Int) {
-    if (readLine.length > maxLineLengthInBytes)
-        throw LineTooLongException("Line is longer than $maxLineLengthInBytes bytes", readLine.toString())
-}
-
 class LineTooLongException(msg: String, val line: String) : RuntimeException(msg) {
 
+}
+
+private class ByteBuffer(val maxCapacity: Int) {
+    private val buffer = ByteArray(maxCapacity)
+    private var size: Int = 0
+
+    fun tryAppend(bytes: ByteArray, offset: Int, length: Int): Boolean {
+        val maxBytesToAppend = buffer.size - size
+        val bytesToAppend = min(length, maxBytesToAppend)
+        System.arraycopy(bytes, offset, buffer, size, bytesToAppend)
+        size += bytesToAppend
+        return bytesToAppend < length
+    }
+    fun tryAppend(bytes: ByteArray): Boolean {
+        return tryAppend(bytes, 0, bytes.size)
+    }
+    fun exceedsMaxCapacity(bytesToAdd: Int): Boolean {
+        return size + bytesToAdd > maxCapacity
+    }
+    override fun toString(): String {
+        return String(buffer, 0, size)
+    }
 }
