@@ -48,7 +48,7 @@ object URIUtil {
             checkURI(uri)
             return uri
         } catch (e: URISyntaxException) {
-            throw InvalidRequestPath("Invalid Path $path")
+            throw InvalidHttpRequestPath("Invalid Path $path")
         }
     }
 
@@ -57,14 +57,14 @@ object URIUtil {
             checkAbsoluteUri(uri)
 
         if (!uri.isAbsolute && !uri.path.startsWith("/"))
-            throw InvalidRequestPath("Absolute Request path must begin with a /")
+            throw InvalidHttpRequestPath("Absolute Request path must begin with a /")
     }
 
     fun checkAbsoluteUri(uri: URI) {
         if (uri.scheme != "http" && uri.scheme != "https")
-            throw InvalidRequestPath("Absolute Request uri may only have scheme http or https")
+            throw InvalidHttpRequestPath("Absolute Request uri may only have scheme http or https")
         if (uri.host.isEmpty())
-            throw InvalidRequestPath("Host of absolute URI may not be empty")
+            throw InvalidHttpRequestPath("Host of absolute URI may not be empty")
 
     }
 
