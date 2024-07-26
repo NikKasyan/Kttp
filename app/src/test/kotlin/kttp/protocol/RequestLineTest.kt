@@ -15,9 +15,9 @@ class RequestLineTest {
         assertThrows<InvalidHttpRequestStructure> {  RequestLine(" ")}
         assertThrows<InvalidHttpRequestStructure> {  RequestLine("GET /")}
 
-        assertThrows<InvalidRequestPath>("Invalid relative path should start with /") {  RequestLine("GET invalidPath $httpVersion")}
-        assertThrows<InvalidRequestPath>("Invalid scheme may only be http or https") {  RequestLine("GET ssh://invalidPath.com/asd $httpVersion")}
-        assertThrows<InvalidRequestPath>("Invalid scheme may only be http or https") {  RequestLine("GET ssh://invalidPath.com/asd $httpVersion")}
+        assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET invalidPath $httpVersion")}
+        assertThrows<InvalidHttpRequestPath>("Invalid scheme may only be http or https") {  RequestLine("GET ssh://invalidPath.com/asd $httpVersion")}
+        assertThrows<InvalidHttpRequestPath>("Invalid scheme may only be http or https") {  RequestLine("GET ssh://invalidPath.com/asd $httpVersion")}
 
         assertThrows<UnknownHttpMethod> {  RequestLine("GET1 http://absolute.com/absolute/asd $httpVersion")}
 
@@ -56,5 +56,15 @@ class RequestLineTest {
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
     }
 
+    @Test
+    fun httpRequestLineWithWhiteSpaceInTargetIsInvalid(){
+        //https://www.rfc-editor.org/rfc/rfc9112#section-3.2-4
+        assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET /asd\t $httpVersion")}
+        assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET /asd\t $httpVersion")}
+        assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET /asd\r $httpVersion")}
+        assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET /asd\n $httpVersion")}
+
+
+    }
 
 }
