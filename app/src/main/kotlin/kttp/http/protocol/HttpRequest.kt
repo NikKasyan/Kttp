@@ -10,7 +10,17 @@ class HttpRequest(
     val body: HttpBody
 ) {
 
+    val httpVersion
+        get() = requestLine.httpVersion
+    val requestUri: URI
+    val method
+        get() = requestLine.method
+
     init {
+
+        if (!httpHeaders.hasHost())
+            throw MissingHostHeader()
+        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.requestTarget)
         if(body.hasContentLength() && !httpHeaders.hasContentLength())
             httpHeaders.withContentLength(body.contentLength!!)
     }
@@ -26,17 +36,7 @@ class HttpRequest(
         }
     }
 
-    val httpVersion
-        get() = requestLine.httpVersion
-    val requestUri: URI
-    val method
-        get() = requestLine.method
 
-    init {
-        if (!httpHeaders.hasHost())
-            throw MissingHostHeader()
-        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.requestTarget)
-    }
 
     private fun combineToRequestUri(host: String, requestTarget: URI): URI {
         val port = if(host.contains(":"))
