@@ -48,7 +48,7 @@ private fun checkRequestLineNotContainsBareCR(methodString: String, pathString: 
     if (hasBareCR(methodString))
         throw InvalidHttpRequestLine("Method must not contain bare CR")
     if (hasBareCR(pathString))
-        throw InvalidHttpRequestLine("Path must not contain bare CR")
+        throw InvalidHttpRequestPath("Path must not contain bare CR")
     if (hasBareCR(httpVersionString))
         throw InvalidHttpRequestLine("HTTP-Version must not contain bare CR")
 }
@@ -56,7 +56,7 @@ private fun checkRequestLineNotContainsBareCR(methodString: String, pathString: 
 open class InvalidHttpRequestLine(msg: String) : InvalidHttpRequest(msg)
 
 class UnknownHttpMethod(msg: String) : InvalidHttpRequestLine(msg)
-class InvalidRequestPath(msg: String) : InvalidHttpRequestLine(msg)
+class InvalidHttpRequestPath(msg: String) : InvalidHttpRequestLine(msg)
 
 class InvalidHttpRequestStructure(msg: String) : InvalidHttpRequestLine(msg)
 
