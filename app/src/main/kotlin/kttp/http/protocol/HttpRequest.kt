@@ -7,7 +7,7 @@ import java.net.URI
 class HttpRequest(
     private val requestLine: RequestLine,
     val httpHeaders: HttpHeaders = HttpHeaders(),
-    val body: HttpBody
+    val body: HttpBody,
 ) {
 
     val httpVersion
@@ -20,9 +20,10 @@ class HttpRequest(
 
         if (!httpHeaders.hasHost())
             throw MissingHostHeader()
-        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.requestTarget)
         if(body.hasContentLength() && !httpHeaders.hasContentLength())
             httpHeaders.withContentLength(body.contentLength!!)
+
+        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.requestTarget)
     }
     companion object {
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
@@ -35,8 +36,6 @@ class HttpRequest(
             return HttpRequest(RequestLine(method, uri), httpHeaders, HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size))
         }
     }
-
-
 
     private fun combineToRequestUri(host: String, requestTarget: URI): URI {
         val port = if(host.contains(":"))
