@@ -87,7 +87,7 @@ class HttpBody(private val body: InputStream = nullInputStream(), val contentLen
         return body.markSupported()
     }
 
-    override fun transferTo(out: OutputStream?): Long {
+    override fun transferTo(out: OutputStream): Long {
         return body.transferTo(out)
     }
 
