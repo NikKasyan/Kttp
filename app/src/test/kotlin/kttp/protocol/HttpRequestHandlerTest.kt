@@ -8,6 +8,7 @@ import kttp.http.protocol.RequestLine
 import kttp.net.IOStream
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
+import java.io.OutputStream
 import java.net.URI
 import kotlin.test.assertEquals
 
@@ -46,7 +47,33 @@ class HttpRequestHandlerTest {
         val request = "$requestLine$headers\r\n"
         val stream = request.byteInputStream()
 
-        val outputStream = ByteArrayOutputStream()
+        val outputStream = OutputStream.nullOutputStream()
+        val ioStream = IOStream(stream, outputStream)
+
+        val parsedRequest = HttpRequestHandler().handle(ioStream)
+
+        assertEquals(requestLine.method, parsedRequest.method)
+        assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.requestUri)
+        assertEquals(requestLine.httpVersion, parsedRequest.httpVersion)
+        assertEquals(headers, parsedRequest.httpHeaders)
+
+    }
+
+    @Test
+    fun testRequestParameters(){
+        val path = "/test"
+        val host = "localhost"
+        val port = 8080
+        val protocol = "http"
+        val requestLine = RequestLine(Method.GET, path, HttpVersion.DEFAULT_VERSION)
+        val headers = HttpHeaders()
+                      .withHost("$host:$port")
+                      .withUserAgent("TestClient/7.68.0")
+                      .withAccept("*/*")
+        val request = "$requestLine$headers\r\n"
+        val stream = request.byteInputStream()
+
+        val outputStream = OutputStream.nullOutputStream()
         val ioStream = IOStream(stream, outputStream)
 
         val parsedRequest = HttpRequestHandler().handle(ioStream)
