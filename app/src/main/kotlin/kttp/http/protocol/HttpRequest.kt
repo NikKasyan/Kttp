@@ -23,7 +23,7 @@ class HttpRequest(
         if(body.hasContentLength() && !httpHeaders.hasContentLength())
             httpHeaders.withContentLength(body.contentLength!!)
 
-        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.requestTarget)
+        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.uri)
     }
     companion object {
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {

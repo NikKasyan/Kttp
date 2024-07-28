@@ -5,8 +5,10 @@ import java.net.URI
 class RequestLine {
 
     val method: Method
-    val requestTarget: URI
+    val uri: URI
     val httpVersion: HttpVersion
+    val parameters = Parameters()
+
 
     constructor(requestString: String) {
         val requestParts = requestString.split(" ")
@@ -19,20 +21,27 @@ class RequestLine {
         checkRequestLineNotContainsBareCR(methodString, path, httpVersionString)
 
         method = Method.byName(methodString)
-        requestTarget = normalizeIfPathIsNotAbsolute(URIUtil.parseURI(path))
+        uri = normalizeIfPathIsNotAbsolute(URIUtil.parseURI(path))
         httpVersion = HttpVersion(httpVersionString)
+        this.parameters.addFromQuery(uri.query)
     }
 
     constructor(method: Method, uri: URI, httpVersion: HttpVersion = HttpVersion.DEFAULT_VERSION) {
         this.method = method
-        this.requestTarget = normalizeIfPathIsNotAbsolute(uri)
+        this.uri = normalizeIfPathIsNotAbsolute(uri)
         this.httpVersion = httpVersion
+        this.parameters.addFromQuery(this.uri.query)
     }
 
     constructor(method: Method, uri: String, httpVersion: HttpVersion) : this(method, URI(uri), httpVersion)
 
     override fun toString(): String {
-        return "$method $requestTarget $httpVersion\r\n"
+        return "$method ${requestTarget()} $httpVersion\r\n"
+    }
+
+    private fun requestTarget(): String {
+        val path = uri.path
+        return if (parameters.isEmpty()) path else "$path?$parameters"
     }
 
     private fun normalizeIfPathIsNotAbsolute(uri: URI): URI {

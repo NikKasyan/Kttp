@@ -30,28 +30,28 @@ class RequestLineTest {
         var httpRequest = RequestLine("GET http://absolute.com/absolute/asd $httpVersion")
 
         assertEquals(httpRequest.method, Method.GET)
-        assertEquals(httpRequest.requestTarget, URI("http://absolute.com/absolute/asd"))
+        assertEquals(httpRequest.uri, URI("http://absolute.com/absolute/asd"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
 
         httpRequest = RequestLine("GET /absolute/asd $httpVersion")
 
         assertEquals(httpRequest.method, Method.GET)
-        assertEquals(httpRequest.requestTarget, URI("/absolute/asd"))
+        assertEquals(httpRequest.uri, URI("/absolute/asd"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
 
         httpRequest = RequestLine("GET / $httpVersion")
 
         assertEquals(httpRequest.method, Method.GET)
-        assertEquals(httpRequest.requestTarget, URI("/"))
+        assertEquals(httpRequest.uri, URI("/"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
 
         httpRequest = RequestLine("POST / $httpVersion")
 
         assertEquals(httpRequest.method, Method.POST)
-        assertEquals(httpRequest.requestTarget, URI("/"))
+        assertEquals(httpRequest.uri, URI("/"))
         assertEquals(httpRequest.httpVersion.majorVersion, httpVersion.majorVersion)
         assertEquals(httpRequest.httpVersion.minorVersion, httpVersion.minorVersion)
     }
@@ -63,8 +63,22 @@ class RequestLineTest {
         assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET /asd\t $httpVersion")}
         assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET /asd\r $httpVersion")}
         assertThrows<InvalidHttpRequestPath>("Invalid relative path should start with /") {  RequestLine("GET /asd\n $httpVersion")}
+    }
 
+    @Test
+    fun testParameters(){
+        val httpRequest = RequestLine("GET /asd?param1=value1&param2=value2 $httpVersion")
+        assertEquals(httpRequest.parameters.size, 2)
+        assertEquals(httpRequest.parameters["param1"], "value1")
+        assertEquals(httpRequest.parameters["param2"], "value2")
+    }
 
+    @Test
+    fun testEncodedParameterShouldBeDecoded(){
+        val parameter = "value with space"
+        val httpRequest = RequestLine("GET /asd?param1=${URIUtil.encodeURI(parameter)} $httpVersion")
+        assertEquals(httpRequest.parameters.size, 1)
+        assertEquals(httpRequest.parameters["param1"], parameter)
     }
 
 }
