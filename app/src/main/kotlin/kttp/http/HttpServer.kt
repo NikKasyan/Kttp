@@ -84,7 +84,6 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
             //   to refuse service of the client's major protocol version.
             // https://www.rfc-editor.org/rfc/rfc7230#page-14
         } catch (exception: Exception) {
-            log.error(exception)
             respondWithError(clientConnection, exception)
         } finally {
             log.info { "Closed connection." }
@@ -96,7 +95,12 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
     }
 
     private fun respondWithError(clientConnection: ClientConnection, exception: Exception) {
-        val httpResponse = httpResponseFromException(exception)
+        val httpResponse = httpResponseFromException(exception).also {
+            if(it.statusLine.status == HttpStatus.INTERNAL_SERVER_ERROR)
+                log.error(exception) { "Internal Server Error" }
+            else
+                log.warn{ "Client Error: ${exception.message}" }
+        }
         respond(httpResponse, clientConnection)
     }
 
@@ -106,7 +110,9 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         is HeaderNameEndsWithWhiteSpace,
         is InvalidHttpRequestLine,
         is HeaderStartsWithWhiteSpace,
-        is InvalidHeader ->
+        is InvalidHeader,
+        is MissingHostHeader,
+        is TooManyHostHeaders ->
             HttpResponse.badRequest(body = exception.message ?: "No message")
         else ->
             HttpResponse.internalError(body = exception.message ?: "No message")

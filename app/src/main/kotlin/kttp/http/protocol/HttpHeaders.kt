@@ -52,6 +52,9 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     constructor(vararg headers: Pair<String, String>) : this() {
         add(*headers)
     }
+    constructor(headers: List<HttpHeader>) : this() {
+        add(headers)
+    }
 
     operator fun set(key: String, value: String) {
         headers[key] = value
@@ -70,7 +73,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
 
     fun add(header: HttpHeader): HttpHeaders {
         if (header.key == CommonHeaders.HOST && hasHost()) // https://www.rfc-editor.org/rfc/rfc9112#section-3.2-6
-            throw InvalidHeader("May not contain multiple Host Fields")
+            throw TooManyHostHeaders()
         checkHeaderNotContainsBareCR(header) // https://www.rfc-editor.org/rfc/rfc9112#name-message-parsing
         headers[header.key] = header.value
         return this
@@ -368,3 +371,5 @@ class InvalidHeaderName : InvalidHttpRequest("Invalid header name")
 
 class HeaderNameEndsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
 class HeaderStartsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
+
+class TooManyHostHeaders : InvalidHttpRequest("May not contain multiple Host Fields")

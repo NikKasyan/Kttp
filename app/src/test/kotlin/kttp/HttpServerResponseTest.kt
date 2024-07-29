@@ -54,6 +54,21 @@ class HttpServerResponseTest {
 
     }
 
+    @Test
+    fun serverSends400ResponseOnMissingHost(){
+        client.io.writeln("GET / HTTP/1.1")
+        client.io.writeln("User-Agent: TestClient/7.68.0")
+        client.io.writeln("Accept: */*")
+        client.io.writeln()
+
+        val statusLineString = client.io.readLine()
+        val statusLine = StatusLine(statusLineString)
+
+        assertEquals(HttpVersion.DEFAULT_VERSION, statusLine.httpVersion)
+        assertEquals(HttpStatus.BAD_REQUEST, statusLine.status)
+
+    }
+
     @AfterEach
     fun tearDown() {
         server.stop()

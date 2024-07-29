@@ -1,12 +1,11 @@
 package kttp.protocol
 
 import kttp.http.HttpRequestHandler
-import kttp.http.protocol.HttpHeaders
-import kttp.http.protocol.HttpVersion
-import kttp.http.protocol.Method
-import kttp.http.protocol.RequestLine
+import kttp.http.MissingHostHeader
+import kttp.http.protocol.*
 import kttp.net.IOStream
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.net.URI
@@ -82,6 +81,40 @@ class HttpRequestHandlerTest {
         assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.requestUri)
         assertEquals(requestLine.httpVersion, parsedRequest.httpVersion)
         assertEquals(headers, parsedRequest.httpHeaders)
+
+    }
+
+    @Test
+    fun testRequestShouldHaveAtLeastOneHost(){
+        val requestWithNoHost = """
+            GET / HTTP/1.1
+            User-Agent: TestClient/7.68.0
+            Accept: */*\r\n\r\n
+        """.trimIndent().byteInputStream()
+
+        val ioStream = IOStream(requestWithNoHost, OutputStream.nullOutputStream())
+
+        assertThrows<MissingHostHeader> {
+            HttpRequestHandler().handle(ioStream)
+        }
+
+    }
+
+    @Test
+    fun testRequestShouldHaveAtMostOneHost(){
+        val requestWithNoHost = """
+            GET / HTTP/1.1
+            User-Agent: TestClient/7.68.0
+            Host: localhost:8080
+            Host: localhost:8080
+            Accept: */*\r\n\r\n
+        """.trimIndent().byteInputStream()
+
+        val ioStream = IOStream(requestWithNoHost, OutputStream.nullOutputStream())
+
+        assertThrows<TooManyHostHeaders> {
+            HttpRequestHandler().handle(ioStream)
+        }
 
     }
 

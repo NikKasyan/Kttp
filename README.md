@@ -14,4 +14,4 @@ Trying to implement all RFC standards for HTTP/1.1
 3. "HTTP/1.1" https://www.rfc-editor.org/rfc/rfc9112
 
 # Current Progress
-https://www.rfc-editor.org/rfc/rfc9112#section-2.3
+https://www.rfc-editor.org/rfc/rfc9112#name-origin-form
