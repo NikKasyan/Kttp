@@ -19,7 +19,7 @@ class IOStream(private val inputStream: InputStream,
 
     private var isClosed = false
 
-    fun writeln(string: String) {
+    fun writeln(string: String = "") {
         if(isClosed)
             throw StreamAlreadyClosed()
         write("${string}\r\n")
