@@ -335,7 +335,7 @@ class HttpHeader {
     val value: String
 
     constructor(httpHeader: String) {
-        val httpHeaderParts = httpHeader.split(Regex(": "), 2)
+        val httpHeaderParts = httpHeader.split(Regex(":"), 2)
         if (httpHeaderParts.size != 2)
             throw InvalidHeader(httpHeader)
         checkHeaderName(httpHeaderParts[0])

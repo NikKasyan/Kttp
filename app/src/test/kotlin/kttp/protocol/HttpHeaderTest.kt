@@ -31,4 +31,10 @@ class HttpHeaderTest {
         assertEquals(header.key, "Test")
         assertEquals(header.value,"Value")
     }
+
+    @Test
+    fun headerShouldHaveOptionalSpaceAfterColon(){
+        val header = HttpHeader("Test:Value")
+        assertEquals(header.toString(), "Test: Value")
+    }
 }
