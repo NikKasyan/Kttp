@@ -53,6 +53,17 @@ enum class HttpStatus(val code: Int, private val msg: String = "") {
             }
             return msg
         }
+    val isInformational: Boolean
+        get() = code in 100..199
+    val isSuccess: Boolean
+        get() = code in 200..299
+    val isRedirection: Boolean
+        get() = code in 300..399
+    val isClientError: Boolean
+        get() = code in 400..499
+    val isServerError: Boolean
+        get() = code in 500..599
+
 
     companion object {
         fun byCode(code: Int): HttpStatus {
