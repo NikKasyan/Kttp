@@ -370,6 +370,6 @@ class InvalidHeader(header: String) : InvalidHttpRequest("Header must be of stru
 class InvalidHeaderName : InvalidHttpRequest("Invalid header name")
 
 class HeaderNameEndsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
-class HeaderStartsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
+class HeaderStartsWithWhiteSpace : InvalidHttpRequest("Header may not start with a whitespace")
 
 class TooManyHostHeaders : InvalidHttpRequest("May not contain multiple Host Fields")
