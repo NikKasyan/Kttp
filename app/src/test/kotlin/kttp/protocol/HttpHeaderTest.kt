@@ -3,6 +3,7 @@ package kttp.protocol
 import kttp.http.protocol.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.test.assertEquals
 
 class HttpHeaderTest {
 
@@ -22,5 +23,12 @@ class HttpHeaderTest {
         )
 
         assertThrows<TooManyHostHeaders> {  HttpHeaders(headers)}
+    }
+
+    @Test
+    fun headerShouldRemoveLeadingAndTrailingWhitespace(){
+        val header = HttpHeader("Test" to " Value ")
+        assertEquals(header.key, "Test")
+        assertEquals(header.value,"Value")
     }
 }
