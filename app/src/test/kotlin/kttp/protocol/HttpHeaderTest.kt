@@ -37,4 +37,8 @@ class HttpHeaderTest {
         val header = HttpHeader("Test:Value")
         assertEquals(header.toString(), "Test: Value")
     }
+    @Test
+    fun headerShouldNotHaveLineFolding() {
+        assertThrows<LineFoldingNotAllowed>{"Test: Value\r\n 2".split("\r\n").map { HttpHeader(it) } }
+    }
 }

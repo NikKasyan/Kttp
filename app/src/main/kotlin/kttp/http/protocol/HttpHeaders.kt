@@ -335,9 +335,11 @@ class HttpHeader {
     val value: String
 
     constructor(httpHeader: String) {
+        checkHeader(httpHeader)
         val httpHeaderParts = httpHeader.split(Regex(":"), 2)
         if (httpHeaderParts.size != 2)
             throw InvalidHeader(httpHeader)
+
         checkHeaderName(httpHeaderParts[0])
         key = httpHeaderParts[0]
         value = httpHeaderParts[1].trim()
@@ -356,7 +358,17 @@ class HttpHeader {
         return "$key: $value"
     }
 
+    private fun checkHeader(headerString: String) {
+        if(headerString.startsWith("\t") || headerString.startsWith(" ")){
+            if(!headerString.contains(":")){
+                throw LineFoldingNotAllowed()
+            } else {
+                throw HeaderStartsWithWhiteSpace()
+            }
+        }
+    }
     private fun checkHeaderName(key: String) {
+
         if (key.matches(endsWithWhiteSpace))
             throw HeaderNameEndsWithWhiteSpace()
         if (!key.matches(tokenRegex))
@@ -368,6 +380,8 @@ class HttpHeader {
 class InvalidHeader(header: String) : InvalidHttpRequest("Header must be of structure key: value. $header is not")
 
 class InvalidHeaderName : InvalidHttpRequest("Invalid header name")
+
+class LineFoldingNotAllowed : InvalidHttpRequest("Line folding is not allowed")
 
 class HeaderNameEndsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
 class HeaderStartsWithWhiteSpace : InvalidHttpRequest("Header may not start with a whitespace")
