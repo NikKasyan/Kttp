@@ -30,19 +30,19 @@ class HttpRequestHandlerTest {
         println(request)
 
 
-
     }
+
     @Test
-    fun testRequestIsParsedCorrectly(){
+    fun testRequestIsParsedCorrectly() {
         val path = "/"
         val host = "localhost"
         val port = 8080
         val protocol = "http"
         val requestLine = RequestLine(Method.GET, path, HttpVersion.DEFAULT_VERSION)
         val headers = HttpHeaders()
-                      .withHost("$host:$port")
-                      .withUserAgent("TestClient/7.68.0")
-                      .withAccept("*/*")
+            .withHost("$host:$port")
+            .withUserAgent("TestClient/7.68.0")
+            .withAccept("*/*")
         val request = "$requestLine$headers\r\n"
         val stream = request.byteInputStream()
 
@@ -59,16 +59,16 @@ class HttpRequestHandlerTest {
     }
 
     @Test
-    fun testRequestParameters(){
+    fun testRequestParameters() {
         val path = "/test"
         val host = "localhost"
         val port = 8080
         val protocol = "http"
         val requestLine = RequestLine(Method.GET, path, HttpVersion.DEFAULT_VERSION)
         val headers = HttpHeaders()
-                      .withHost("$host:$port")
-                      .withUserAgent("TestClient/7.68.0")
-                      .withAccept("*/*")
+            .withHost("$host:$port")
+            .withUserAgent("TestClient/7.68.0")
+            .withAccept("*/*")
         val request = "$requestLine$headers\r\n"
         val stream = request.byteInputStream()
 
@@ -85,7 +85,7 @@ class HttpRequestHandlerTest {
     }
 
     @Test
-    fun testRequestShouldHaveAtLeastOneHost(){
+    fun testRequestShouldHaveAtLeastOneHost() {
         val requestWithNoHost = """
             GET / HTTP/1.1
             User-Agent: TestClient/7.68.0
@@ -101,7 +101,7 @@ class HttpRequestHandlerTest {
     }
 
     @Test
-    fun testRequestShouldHaveAtMostOneHost(){
+    fun testRequestShouldHaveAtMostOneHost() {
         val requestWithNoHost = """
             GET / HTTP/1.1
             User-Agent: TestClient/7.68.0
@@ -118,4 +118,88 @@ class HttpRequestHandlerTest {
 
     }
 
+    @Test
+    fun requestWithInvalidContentLengthShouldThrowInvalidContentLength() {
+        val requestWithInvalidContentLength = """
+            GET / HTTP/1.1
+            User-Agent: TestClient/7.68.0
+            Host: localhost:8080
+            Content-Length: invalid
+            Accept: */*\r\n\r\n
+        """.trimIndent().byteInputStream()
+
+        val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
+
+        assertThrows<InvalidContentLength> {
+            HttpRequestHandler().handle(ioStream)
+        }
+    }
+
+    @Test
+    fun requestShouldHaveValidTransferEncoding() {
+        val requestWithInvalidTransferEncoding = """
+            GET / HTTP/1.1
+            User-Agent: TestClient/7.68.0
+            Host: localhost:8080
+            Transfer-Encoding: invalid
+            Accept: */*\r\n\r\n
+        """.trimIndent().byteInputStream()
+
+        val ioStream = IOStream(requestWithInvalidTransferEncoding, OutputStream.nullOutputStream())
+
+        assertThrows<UnknownTransferEncoding> {
+            HttpRequestHandler().handle(ioStream)
+        }
+    }
+
+    @Test
+    fun requestShouldHaveValidContentLengthIfContentLengthContainsListWithSameValue() {
+        val requestWithInvalidContentLength = """
+            GET / HTTP/1.1
+            User-Agent: TestClient/7.68.0
+            Host: localhost:8080
+            Content-Length: 0,0,0
+            Accept: */*\r\n\r\n
+        """.trimIndent().byteInputStream()
+
+        val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
+
+
+        val request = HttpRequestHandler().handle(ioStream)
+
+        assertEquals(0, request.httpHeaders.contentLength)
+    }
+
+    @Test
+    fun requestWithInvalidContentLengthShouldThrowInvalidHeader() {
+        val requestWithInvalidContentLength = """
+            GET / HTTP/1.1
+            User-Agent: TestClient/7.68.0
+            Host: localhost:8080
+            Content-Length: invalid
+            Accept: */*\r\n\r\n
+        """.trimIndent().byteInputStream()
+
+        val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
+
+        assertThrows<InvalidContentLength> {
+            HttpRequestHandler().handle(ioStream)
+        }
+    }
+    @Test
+    fun requestWithInvalidContentLengthShouldThrowInvalidHeader2() {
+        val requestWithInvalidContentLength = """
+            GET / HTTP/1.1
+            User-Agent: TestClient/7.68.0
+            Host: localhost:8080
+            Content-Length: 0,1,0
+            Accept: */*\r\n\r\n
+        """.trimIndent().byteInputStream()
+
+        val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
+
+        assertThrows<InvalidContentLength> {
+            HttpRequestHandler().handle(ioStream)
+        }
+    }
 }
