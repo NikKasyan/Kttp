@@ -105,12 +105,13 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
     }
 
     private fun httpResponseFromException(exception: Exception) = when (exception) {
+        is UnknownTransferEncoding -> HttpResponse.fromStatus(HttpStatus.NOT_IMPLEMENTED, body = exception.message ?: "No message")
         is UnknownHttpMethod -> HttpResponse.fromStatus(HttpStatus.METHOD_NOT_ALLOWED, body = exception.message ?: "No message")
         is UriTooLong -> HttpResponse.fromStatus(HttpStatus.REQUEST_URI_TOO_LARGE, body = exception.message ?: "No message")
         is HeaderNameEndsWithWhiteSpace,
         is InvalidHttpRequestLine,
         is HeaderStartsWithWhiteSpace,
-        is InvalidHeader,
+        is InvalidHeaderStructure,
         is MissingHostHeader,
         is TooManyHostHeaders ->
             HttpResponse.badRequest(body = exception.message ?: "No message")

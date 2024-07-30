@@ -53,6 +53,13 @@ class HttpRequestHandler {
     private fun checkHeaders(headers: HttpHeaders) {
         if (!headers.hasHost())
             throw MissingHostHeader()
+        // https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
+        if(headers.hasContentLength() && headers.hasTransferEncoding())
+            throw InvalidHeaderStructure("Cannot have both Content-Length and Transfer-Encoding")
+        if(headers.hasTransferEncoding() && headers.transferEncodingAsList().last() != TransferEncoding.CHUNKED)
+            throw InvalidHeaderStructure("Transfer-Encoding must end with chunked if present")
+        if(headers.hasContentLength() && headers.contentLengthLong() < 0)
+            throw InvalidHeaderStructure("Content-Length must be a number")
     }
 
     private fun readHeaders(io: IOStream): HttpHeaders {
@@ -64,7 +71,6 @@ class HttpRequestHandler {
             if (header.isEmpty())
                 break
             try {
-                // Todo: Handle Line folding https://www.rfc-editor.org/rfc/rfc9112#name-obsolete-line-folding
                 headers.add(header)
                 isFirstLine = false
             } catch (e: InvalidHeaderName) {

@@ -69,6 +69,23 @@ class HttpServerResponseTest {
 
     }
 
+    @Test
+    fun serverSends501OnUnknownTransferEncoding(){
+        client.io.writeln("GET / HTTP/1.1")
+        client.io.writeln("User-Agent: TestClient/7.68.0")
+        client.io.writeln("Accept: */*")
+        client.io.writeln("Host: localhost:8080")
+        client.io.writeln("Transfer-Encoding: unknown")
+        client.io.writeln()
+
+        val statusLineString = client.io.readLine()
+        val statusLine = StatusLine(statusLineString)
+
+        assertEquals(HttpVersion.DEFAULT_VERSION, statusLine.httpVersion)
+        assertEquals(HttpStatus.NOT_IMPLEMENTED, statusLine.status)
+
+    }
+
     @AfterEach
     fun tearDown() {
         server.stop()

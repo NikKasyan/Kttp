@@ -33,7 +33,7 @@ class HttpRequest(
                 httpHeaders.withHost(uri.host)
             val bodyArray = body.toByteArray()
 
-            return HttpRequest(RequestLine(method, uri), httpHeaders, HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size))
+            return HttpRequest(RequestLine(method, uri), httpHeaders, HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size.toLong()))
         }
     }
 

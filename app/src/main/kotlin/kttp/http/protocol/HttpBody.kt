@@ -5,15 +5,16 @@ import java.io.InputStream
 import java.io.OutputStream
 
 
-class HttpBody(private val body: InputStream = nullInputStream(), val contentLength: Int? = null): InputStream() {
+class HttpBody(private val body: InputStream = nullInputStream(), val contentLength: Long? = null): InputStream() {
+
 
     companion object {
         fun fromString(body: String): HttpBody {
 
-            return HttpBody(body.byteInputStream(), body.length)
+            return HttpBody(body.byteInputStream(), body.length.toLong())
         }
         fun fromBytes(body: ByteArray): HttpBody {
-            return HttpBody(ByteArrayInputStream(body), body.size)
+            return HttpBody(ByteArrayInputStream(body), body.size.toLong())
         }
         fun empty(): HttpBody {
             return HttpBody()
@@ -50,8 +51,8 @@ class HttpBody(private val body: InputStream = nullInputStream(), val contentLen
     }
 
     override fun readAllBytes(): ByteArray {
-        if(hasContentLength())
-            return body.readNBytes(contentLength!!)
+        if(hasContentLength() && contentLength!! < Int.MAX_VALUE)
+            return body.readNBytes(contentLength.toInt())
         return body.readAllBytes()
     }
 

@@ -19,6 +19,24 @@ object CommonHeaders {
 
 }
 
+enum class TransferEncoding(val value: String) {
+    CHUNKED("chunked"),
+    COMPRESS("compress"),
+    DEFLATE("deflate"),
+    GZIP("gzip"),
+    IDENTITY("identity");
+
+    companion object {
+        fun byEncoding(value: String): TransferEncoding {
+            try {
+                return values().first { it.value.equals(value, ignoreCase = true) }
+            } catch (e: NoSuchElementException) {
+                throw UnknownTransferEncoding(value)
+            }
+        }
+    }
+}
+
 object DateFormats {
     private const val IMF_FIX_DATE = "EEE, dd MMM yyyy HH:mm:ss z"
 
@@ -32,12 +50,11 @@ object DateFormats {
 }
 
 
-
 fun checkHeaderNotContainsBareCR(header: HttpHeader) {
     if (hasBareCR(header.key))
-        throw InvalidHeader("Header key may not contain a bare CR")
+        throw InvalidHeaderStructure("Header key may not contain a bare CR")
     if (hasBareCR(header.value))
-        throw InvalidHeader("Header value may not contain a bare CR")
+        throw InvalidHeaderStructure("Header value may not contain a bare CR")
 }
 
 //Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
@@ -52,6 +69,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     constructor(vararg headers: Pair<String, String>) : this() {
         add(*headers)
     }
+
     constructor(headers: List<HttpHeader>) : this() {
         add(headers)
     }
@@ -103,8 +121,8 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     //                  COMMON HEADERS                  //
     //////////////////////////////////////////////////////
 
-    var contentLength: Int?
-        get() = if (hasContentLength()) contentLength() else null
+    var contentLength: Long?
+        get() = if (hasContentLength()) contentLengthLong() else null
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.CONTENT_LENGTH)
@@ -112,7 +130,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
                 withContentLength(value)
         }
 
-    fun withContentLength(contentLength: Int): HttpHeaders {
+    fun withContentLength(contentLength: Long): HttpHeaders {
         headers[CommonHeaders.CONTENT_LENGTH] = contentLength.toString()
         return this
     }
@@ -122,7 +140,25 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     }
 
     fun contentLength(): Int {
-        return headers[CommonHeaders.CONTENT_LENGTH]!!.toInt()
+        return contentLengthLong().toInt()
+    }
+
+    fun contentLengthLong(): Long {
+        return contentLengthAsString().toLongOrNull() ?: contentLengthFromList()
+    }
+
+    fun contentLengthAsString(): String {
+        return headers[CommonHeaders.CONTENT_LENGTH]!!
+    }
+
+    private fun contentLengthFromList(): Long {
+        val contentLengths = contentLengthAsString().split(",").map { it.trim().toLongOrNull() }
+        if (contentLengths.any { it == null })
+            throw InvalidContentLength("Content-Length must be a number")
+        val distinctContentLengths = contentLengths.distinct()
+        if (distinctContentLengths.size > 1)
+            throw InvalidContentLength("Content-Length must be the same for all parts")
+        return distinctContentLengths.first()!!
     }
 
     var userAgent: String?
@@ -204,7 +240,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
         return acceptLanguage().split(", ").map { it.trim() }
     }
 
-    var transferEncoding: String?
+    var transferEncoding: TransferEncoding?
         get() = if (hasTransferEncoding()) transferEncoding() else null
         set(value) {
             if (value == null)
@@ -213,8 +249,9 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
                 withTransferEncoding(value)
         }
 
-    fun withTransferEncoding(transferEncoding: String): HttpHeaders {
-        headers[CommonHeaders.TRANSFER_ENCODING] = transferEncoding
+    fun withTransferEncoding(vararg transferEncoding: TransferEncoding): HttpHeaders {
+        checkTransferEncoding(transferEncoding.toList())
+        headers[CommonHeaders.TRANSFER_ENCODING] = transferEncoding.joinToString { it.value }
         return this
     }
 
@@ -222,12 +259,20 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
         return headers.containsKey(CommonHeaders.TRANSFER_ENCODING)
     }
 
-    fun transferEncoding(): String {
+    fun transferEncoding(): TransferEncoding {
+        return transferEncodingAsList().first()
+    }
+
+    fun transferEncodingAsString(): String {
         return headers[CommonHeaders.TRANSFER_ENCODING]!!
     }
 
-    fun transferEncodingAsList(): List<String> {
-        return transferEncoding().split(", ")
+    fun transferEncodingAsStrings(): List<String> {
+        return transferEncodingAsString().split(", ").map { it.trim() }
+    }
+
+    fun transferEncodingAsList(): List<TransferEncoding> {
+        return transferEncodingAsStrings().map { TransferEncoding.byEncoding(it) }
     }
 
     var date: Date?
@@ -289,7 +334,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     }
 
     fun withAccepts(accepts: List<String>): HttpHeaders {
-        return withAccepts(accepts.joinToString() )
+        return withAccepts(accepts.joinToString())
     }
 
     fun hasAccept(): Boolean {
@@ -301,7 +346,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
     }
 
     fun acceptAsList(): List<String> {
-        return accept().split(", ")
+        return accept().split(",").map { it.trim() }
     }
 
 
@@ -324,11 +369,26 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
         return true
     }
 
+    override fun hashCode(): Int {
+        return headers.hashCode()
+    }
+
 }
 
 private val tokenRegex = Regex("[A-Za-z0-9!#$%&'*+\\-.^_`|~]+")
 
 private val endsWithWhiteSpace = Regex("\\s$")
+
+private fun checkTransferEncoding(transferEncoding: List<TransferEncoding>) {
+    if (transferEncoding.contains(TransferEncoding.IDENTITY) && transferEncoding.size > 1)
+        throw InvalidTransferEncoding("Identity must be the only Transfer Encoding if present")
+    // May not contain multiple chunked encodings https://www.rfc-editor.org/rfc/rfc9112#section-6.1-4
+    if (transferEncoding.count { it == TransferEncoding.CHUNKED } > 1)
+        throw InvalidTransferEncoding("May not contain multiple Chunked Transfer Encodings")
+    // Chunked must be the last encoding https://www.rfc-editor.org/rfc/rfc9112#section-6.1-4
+    if (transferEncoding.indexOf(TransferEncoding.CHUNKED) != transferEncoding.size - 1)
+        throw InvalidTransferEncoding("Chunked must be the last Transfer Encoding")
+}
 
 class HttpHeader {
     val key: String
@@ -338,7 +398,7 @@ class HttpHeader {
         checkHeader(httpHeader)
         val httpHeaderParts = httpHeader.split(Regex(":"), 2)
         if (httpHeaderParts.size != 2)
-            throw InvalidHeader(httpHeader)
+            throw InvalidHeaderStructure(httpHeader)
 
         checkHeaderName(httpHeaderParts[0])
         key = httpHeaderParts[0]
@@ -352,21 +412,22 @@ class HttpHeader {
         this.value = value.trim()
     }
 
-    constructor(header: Pair<String, String>): this(header.first, header.second)
+    constructor(header: Pair<String, String>) : this(header.first, header.second)
 
     override fun toString(): String {
         return "$key: $value"
     }
 
     private fun checkHeader(headerString: String) {
-        if(headerString.startsWith("\t") || headerString.startsWith(" ")){
-            if(!headerString.contains(":")){
+        if (headerString.startsWith("\t") || headerString.startsWith(" ")) {
+            if (!headerString.contains(":")) {
                 throw LineFoldingNotAllowed()
             } else {
                 throw HeaderStartsWithWhiteSpace()
             }
         }
     }
+
     private fun checkHeaderName(key: String) {
 
         if (key.matches(endsWithWhiteSpace))
@@ -377,13 +438,21 @@ class HttpHeader {
 
 }
 
-class InvalidHeader(header: String) : InvalidHttpRequest("Header must be of structure key: value. $header is not")
+class InvalidHeaderStructure(header: String) : InvalidHttpRequest("Header must be of structure key: value. $header is not")
 
-class InvalidHeaderName : InvalidHttpRequest("Invalid header name")
+class InvalidHeaderName : InvalidHeader("Invalid header name")
 
-class LineFoldingNotAllowed : InvalidHttpRequest("Line folding is not allowed")
+class LineFoldingNotAllowed : InvalidHeader("Line folding is not allowed")
 
-class HeaderNameEndsWithWhiteSpace : InvalidHttpRequest("Header may not end with a whitespace")
-class HeaderStartsWithWhiteSpace : InvalidHttpRequest("Header may not start with a whitespace")
+class HeaderNameEndsWithWhiteSpace : InvalidHeader("Header may not end with a whitespace")
+class HeaderStartsWithWhiteSpace : InvalidHeader("Header may not start with a whitespace")
 
-class TooManyHostHeaders : InvalidHttpRequest("May not contain multiple Host Fields")
+class TooManyHostHeaders : InvalidHeader("May not contain multiple Host Fields")
+
+class UnknownTransferEncoding(transferEncoding: String) :
+    InvalidHeader("Unknown Transfer Encoding: $transferEncoding")
+
+class InvalidContentLength(message: String) : InvalidHeader("Invalid Content-Length: $message")
+
+class InvalidTransferEncoding(message: String) : InvalidHeader("Invalid Transfer-Encoding: $message")
+open class InvalidHeader(message: String) : InvalidHttpRequest(message)
