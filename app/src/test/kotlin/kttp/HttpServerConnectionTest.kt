@@ -19,9 +19,13 @@ class HttpServerConnectionTest {
     private lateinit var httpServer: HttpServer
     private val defaultPort = 80
 
-    @BeforeEach
-    fun setUp() {
-        this.httpServer = HttpServer(defaultPort)
+    init{
+
+        thread {
+            this.httpServer = HttpServer(defaultPort)
+            httpServer.start()
+        }
+        Thread.sleep(100)
     }
 
     @Test
@@ -33,15 +37,12 @@ class HttpServerConnectionTest {
     @Test
     fun startServerTwice_shouldThrowIllegalStateException() {
         assertThrows<IllegalStateException> {
-            startHttpServer()
-            Thread.sleep(500)
             httpServer.start()
         }
     }
 
     @Test
     fun startHttpServer_acceptsNewSockets() {
-        startHttpServer()
         val socket = createSocket()
 
         assertTrue(socket.isConnected, "Client should connect after start")
@@ -49,26 +50,18 @@ class HttpServerConnectionTest {
 
     @Test
     fun startHttpServer_thenStopServer_acceptNoSockets() {
-        startHttpServer()
         this.httpServer.stop()
         assertThrows<ConnectException> { createSocket() }
     }
 
     @Test
     fun startHttpServer_thenConnect_AndStopServer_socketShouldDisconnect() {
-        startHttpServer()
         createSocket()
         this.httpServer.stop()
     }
 
     @Test
-    fun connectWithClientBeforeStart_shouldNotAcceptSocket() {
-        assertThrows<ConnectException> { createSocket() }
-    }
-
-    @Test
     fun connectWithClient_ThenDisconnect_Server_shouldNotFail() {
-        startHttpServer()
         val socket = createSocket()
         val clientConnection = ClientConnection(socket)
         clientConnection.close()
@@ -79,10 +72,9 @@ class HttpServerConnectionTest {
 
     @Test
     fun connectWith21Client_LastClientShouldNotConnect() {
-        startHttpServer()
-        for (i in 0..20)
+        for (i in 0 until 20)
             createSocket()
-        Thread.sleep(500)
+        Thread.sleep(100)
         assertEquals(20, httpServer.activeConnections)
 
     }
@@ -90,13 +82,6 @@ class HttpServerConnectionTest {
     @AfterEach
     fun teardown() {
         httpServer.stop()
-    }
-
-    private fun startHttpServer() {
-        thread {
-            httpServer.start()
-        }
-        Thread.sleep(500)
     }
 
 

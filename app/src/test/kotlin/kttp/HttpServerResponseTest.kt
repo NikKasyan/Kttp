@@ -18,13 +18,15 @@ class HttpServerResponseTest {
     private lateinit var server: HttpServer
     private lateinit var client: ClientConnection
 
-    @BeforeEach
-    fun setup() {
+    init {
         thread {
             server = HttpServer(port)
             server.start()
         }
-        Thread.sleep(300)
+        Thread.sleep(200)
+    }
+    @BeforeEach
+    fun setup() {
         client = ClientConnection(Socket("localhost", port))
     }
 
@@ -83,6 +85,7 @@ class HttpServerResponseTest {
 
         assertEquals(HttpVersion.DEFAULT_VERSION, statusLine.httpVersion)
         assertEquals(HttpStatus.NOT_IMPLEMENTED, statusLine.status)
+
 
     }
 

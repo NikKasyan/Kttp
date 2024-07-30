@@ -21,7 +21,7 @@ class IOStreamTest {
 
     @BeforeEach
     fun setup() {
-        this.server = SimpleTestServer(defaultPort, 4)
+        this.server = SimpleTestServer(defaultPort, 1)
         thread { this.server.acceptSocket() }
         this.client = ClientConnection(Socket(InetAddress.getLocalHost(), defaultPort))
     }
