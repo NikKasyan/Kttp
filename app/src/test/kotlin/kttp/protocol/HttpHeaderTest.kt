@@ -41,4 +41,36 @@ class HttpHeaderTest {
     fun headerShouldNotHaveLineFolding() {
         assertThrows<LineFoldingNotAllowed>{"Test: Value\r\n 2".split("\r\n").map { HttpHeader(it) } }
     }
+
+    @Test
+    fun transferEncodingChunked_shouldBeParsedCorrectly(){
+        val headers = HttpHeaders(listOf(HttpHeader("Transfer-Encoding" to "chunked")))
+        assertEquals(headers.transferEncoding, TransferEncoding.CHUNKED)
+    }
+
+    @Test
+    fun transferEncodingIdentity_shouldBeParsedCorrectly(){
+        val headers = HttpHeaders(listOf(HttpHeader("Transfer-Encoding" to "identity")))
+        assertEquals(headers.transferEncoding, TransferEncoding.IDENTITY)
+    }
+
+    @Test
+    fun transferEncodingIdentityWithChunked_shouldThrowException(){
+        assertThrows<InvalidTransferEncoding> { HttpHeaders().withTransferEncoding(TransferEncoding.IDENTITY, TransferEncoding.CHUNKED) }
+    }
+    @Test
+    fun transferEncodingChunked_shouldBeLast(){
+        assertThrows<InvalidTransferEncoding> {  HttpHeaders().withTransferEncoding(TransferEncoding.CHUNKED, TransferEncoding.GZIP)}
+    }
+
+    @Test
+    fun transferEncodingChunked_shouldBeOncePresent(){
+        assertThrows<InvalidTransferEncoding> {  HttpHeaders().withTransferEncoding(TransferEncoding.CHUNKED, TransferEncoding.CHUNKED)}
+    }
+
+    @Test
+    fun contentLengthWithMultipleEntries_shouldBeParsedCorrectly(){
+        val headers = HttpHeaders(listOf(HttpHeader("Content-Length" to "100,100,100")))
+        assertEquals(headers.contentLength, 100)
+    }
 }
