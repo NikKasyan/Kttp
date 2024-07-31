@@ -135,6 +135,6 @@ private class ByteBuffer(val maxCapacity: Int) {
         return size + bytesToAdd > maxCapacity
     }
     override fun toString(): String {
-        return String(buffer, 0, size)
+        return String(buffer, 0, size, Charsets.US_ASCII)
     }
 }

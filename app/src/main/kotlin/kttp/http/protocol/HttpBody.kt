@@ -3,9 +3,18 @@ package kttp.http.protocol
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.charset.Charset
 
 
-class HttpBody(private val body: InputStream = nullInputStream(), val contentLength: Long? = null): InputStream() {
+class HttpBody(body: InputStream = nullInputStream(),
+               val contentLength: Long? = null,
+               transferEncodings: List<TransferEncoding> = emptyList()
+): InputStream() {
+
+    private val body: InputStream
+    init {
+        this.body = body
+    }
 
 
     companion object {
@@ -27,8 +36,8 @@ class HttpBody(private val body: InputStream = nullInputStream(), val contentLen
 
 
     //Todo: Handle also Transfer-Encoding https://www.rfc-editor.org/rfc/rfc9112#name-transfer-encoding
-    fun readAsString(): String {
-        return readAllBytes().toString(Charsets.UTF_8)
+    fun readAsString(charset: Charset = Charsets.UTF_8): String {
+        return readAllBytes().toString(charset)
     }
 
     //////////////////
