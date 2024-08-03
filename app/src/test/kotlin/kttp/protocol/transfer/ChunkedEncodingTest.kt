@@ -1,10 +1,7 @@
 package kttp.protocol.transfer
 
-import kttp.http.protocol.transfer.ChunkedInputStream
 import kttp.http.protocol.HttpHeaders
-import kttp.http.protocol.transfer.InvalidChunkSize
-import kttp.http.protocol.transfer.chunkString
-import kttp.http.protocol.transfer.chunkStringWithChunkSize
+import kttp.http.protocol.transfer.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
@@ -159,7 +156,7 @@ class ChunkedEncodingTest {
     }
 
     @Test
-    fun chunkedInputStream_shouldHandleLongChunkExtension() {
+    fun chunkedInputStream_shouldThrowOnTooLongChunkExtension() {
         val stream = chunkString(wikiString, listOf(
             4 to "test=1",
             5 to "test=2",
@@ -168,10 +165,7 @@ class ChunkedEncodingTest {
 
         val chunkedInputStream = ChunkedInputStream(stream)
 
-
-        val bytes = chunkedInputStream.readAllBytes()
-
-        assertEquals("Wikipedia in\r\n\r\nchunks.", bytes.toString(Charsets.US_ASCII))
+        assertThrows<ChunkExtensionTooLong> {  chunkedInputStream.readAllBytes() }
 
     }
 

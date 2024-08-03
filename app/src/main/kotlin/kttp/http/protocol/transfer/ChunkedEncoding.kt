@@ -15,17 +15,20 @@ class ChunkedInputStream(
 ) : InputStream() {
 
 
-    private var state = ChunkedInputStreamState.CHUNK_SIZE
-
-    private val transformedData = ByteArray(4096)
-
-    private var transformedDataSize = 0
-
-    private var transformedDataPosition = 0
-
     private var chunkSize = 0
 
+    private var state = ChunkedInputStreamState.CHUNK_SIZE
+
     private var contentLength = 0L
+
+
+    private var chunkExtension = ByteArray(2048)
+    private var chunkExtensionPosition = 0
+
+    private val transformedData = ByteArray(4096)
+    private var transformedDataSize = 0
+    private var transformedDataPosition = 0
+
 
     private var headerBytes = ByteArray(2048)
     private var headerBytesPosition = 0
@@ -123,6 +126,7 @@ class ChunkedInputStream(
 
 
     private fun parseChunkSize(): Int {
+        chunkExtensionPosition = 0
         var pos = 0
         while (bufferPosition + pos < readBytes) {
             val byte = buffer[bufferPosition + pos]
@@ -165,7 +169,18 @@ class ChunkedInputStream(
                 break
             }
         }
+
+        copyChunkExtension(pos)
+
         return pos
+    }
+
+    private fun copyChunkExtension(pos: Int) {
+        if (chunkExtensionPosition + pos > chunkExtension.size) {
+            throw ChunkExtensionTooLong("Chunk extension too long")
+        }
+        System.arraycopy(buffer, bufferPosition, chunkExtension, chunkExtensionPosition, pos)
+        chunkExtensionPosition += pos
     }
 
     private fun parseChunkSizeEol(): Int {
@@ -333,6 +348,8 @@ class InvalidChunkSize(msg: String) : RuntimeException(msg)
 class InvalidTrailer(msg: String) : RuntimeException(msg)
 
 class InvalidState(msg: String) : RuntimeException(msg)
+
+class ChunkExtensionTooLong(msg: String) : RuntimeException(msg)
 
 
 typealias Chunking = Pair<Int, String>
