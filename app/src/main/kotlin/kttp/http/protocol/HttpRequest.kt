@@ -1,7 +1,9 @@
 package kttp.http.protocol
 
 import kttp.http.MissingHostHeader
+import kttp.net.CombinedInputStream
 import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.net.URI
 
 class HttpRequest(
@@ -26,14 +28,25 @@ class HttpRequest(
         requestUri = combineToRequestUri(httpHeaders.host(), requestLine.uri)
     }
     companion object {
-        fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
+        fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: HttpBody): HttpRequest {
             if(uri.isAbsolute && uri.host == null && !httpHeaders.hasHost())
                 throw MissingHostHeader()
             if(!httpHeaders.hasHost())
-                httpHeaders.withHost(uri.host)
-            val bodyArray = body.toByteArray()
+                httpHeaders.withHost(uri)
 
-            return HttpRequest(RequestLine(method, uri), httpHeaders, HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size.toLong()))
+            return HttpRequest(RequestLine(method, uri), httpHeaders, body)
+        }
+        fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
+            val bodyArray = body.toByteArray()
+            val body = HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size.toLong())
+
+            return from(method, uri, httpHeaders, body)
+        }
+
+        fun from(method: Method, uriString: String, httpHeaders: HttpHeaders = HttpHeaders(), inputStream: InputStream?): HttpRequest {
+            val contentLength = httpHeaders.contentLength
+            val body = HttpBody(inputStream?: InputStream.nullInputStream(), contentLength)
+            return from(method, URI.create(uriString), httpHeaders, body)
         }
     }
 
@@ -82,6 +95,15 @@ fun hasBareCR(string: String): Boolean {
 object GetRequest {
     fun from(uri: URI, httpHeaders: HttpHeaders = HttpHeaders()): HttpRequest {
         return HttpRequest.from(Method.GET, uri, httpHeaders)
+    }
+}
+
+object PostRequest {
+    fun from(uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
+        return HttpRequest.from(Method.POST, uri, httpHeaders, body)
+    }
+    fun from(uriString: String, httpHeaders: HttpHeaders = HttpHeaders(), inputStream: InputStream?): HttpRequest {
+        return HttpRequest.from(Method.POST, uriString, httpHeaders, inputStream)
     }
 }
 
