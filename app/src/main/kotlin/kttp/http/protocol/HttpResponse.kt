@@ -1,5 +1,6 @@
 package kttp.http.protocol
 
+import kttp.net.CombinedInputStream
 import kttp.net.IOStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
@@ -57,7 +58,11 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
     }
 
     fun asStream(): InputStream {
-        return HttpResponseStream(this)
+        return CombinedInputStream(
+            "${statusLine}\r\n".byteInputStream(),
+            "${headers}\r\n\r\n".byteInputStream(),
+            body
+        )
     }
 
     fun writeTo(ioStream: IOStream) {

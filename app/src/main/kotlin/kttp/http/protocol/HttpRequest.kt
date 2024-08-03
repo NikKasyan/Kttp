@@ -58,6 +58,14 @@ class HttpRequest(
     override fun toString(): String {
         return "$requestLine$httpHeaders\r\n\r\n$body"
     }
+
+    fun asStream(): InputStream {
+        return CombinedInputStream(
+            requestLine.toString().byteInputStream(),
+            "$httpHeaders\r\n\r\n".byteInputStream(),
+            body
+        )
+    }
 }
 
 fun hasBareCR(string: String): Boolean {
