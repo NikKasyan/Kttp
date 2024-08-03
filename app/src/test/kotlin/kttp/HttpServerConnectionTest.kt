@@ -65,14 +65,14 @@ class HttpServerConnectionTest {
         val socket = createSocket()
         val clientConnection = ClientConnection(socket)
         clientConnection.close()
-        Thread.sleep(500)
+        Thread.sleep(200)
         assertEquals(0, httpServer.activeConnections)
 
     }
 
     @Test
     fun connectWith21Client_LastClientShouldNotConnect() {
-        for (i in 0 until 20)
+        for (i in 0 .. 20)
             createSocket()
         Thread.sleep(100)
         assertEquals(20, httpServer.activeConnections)
@@ -86,6 +86,6 @@ class HttpServerConnectionTest {
 
 
     private fun createSocket(): Socket {
-        return Socket(InetAddress.getLocalHost(), defaultPort);
+        return Socket(InetAddress.getLocalHost(), defaultPort)
     }
 }

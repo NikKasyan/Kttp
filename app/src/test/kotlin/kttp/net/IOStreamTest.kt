@@ -73,7 +73,7 @@ class IOStreamTest {
 
     @Test
     fun serverWrites_clientReads_serverStops_shouldThrowEndOfStream() {
-        thread { Thread.sleep(500); server.stop() }
+        thread { Thread.sleep(100); server.stop() }
         assert(client.io.readLine().isEmpty())
     }
 
@@ -88,7 +88,7 @@ class IOStreamTest {
     @Test()
     fun serverStartsReadToClosedStream_shouldThrowEndOfStream() {
         thread {
-            Thread.sleep(500)
+            Thread.sleep(100)
             client.close()
         }
 
