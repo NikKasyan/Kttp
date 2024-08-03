@@ -85,7 +85,15 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
         val bufferedBytes = readFromInternalBuffer(buffer, offset, contentLength)
         if (bufferedBytes == contentLength)
             return bufferedBytes
-        return bufferedInputStream.read(buffer, offset + bufferedBytes, contentLength - bufferedBytes)
+        val readBytesFromStream = bufferedInputStream.read(buffer, offset + bufferedBytes, contentLength - bufferedBytes)
+        return if (readBytesFromStream == -1) {
+            if (bufferedBytes == 0)
+                -1
+            else
+                bufferedBytes
+        } else {
+            bufferedBytes + readBytesFromStream
+        }
     }
 
     private fun readFromInternalBuffer(buffer: ByteArray, offset: Int, contentLength: Int): Int {

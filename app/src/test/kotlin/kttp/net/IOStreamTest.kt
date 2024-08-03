@@ -7,10 +7,13 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
+import java.io.ByteArrayInputStream
+import java.io.OutputStream
 import java.net.InetAddress
 import java.net.Socket
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.test.assertEquals
 
 @Timeout(5, unit = TimeUnit.SECONDS)
 class IOStreamTest {
@@ -98,6 +101,36 @@ class IOStreamTest {
         assertThrows<EndOfStream> { server.readLine() }
     }
 
+    @Test
+    fun readBytesMultipleTimes() {
+        val inputString = "Das ist ein Test, welcher funktioniert!"
+        val inputStream = inputString.byteInputStream()
+        val ioStream = IOStream(inputStream, OutputStream.nullOutputStream())
+        val buffer = ByteArray(5)
+        var readBytes = 0
+        var totalBytes = 0
+        while (readBytes != -1) {
+            readBytes = ioStream.read(buffer, 0, 5)
+            if (readBytes != -1) {
+                assertEquals(inputString.substring(totalBytes, totalBytes + readBytes), String(buffer, 0, readBytes))
+                totalBytes += readBytes
+            }
+        }
+        assertEquals(inputString.length, totalBytes)
+    }
+
+    @Test
+    fun readLineThenReadRest(){
+        val inputString = "Das ist ein Test\r\nmit neuer Zeile und noch eine\r\n"
+        val input = ByteArrayInputStream(inputString.toByteArray())
+        val ioStream = IOStream(input, OutputStream.nullOutputStream())
+
+        val lines = inputString.split("\r\n")
+        var string = ioStream.readLine()
+        assertEquals(lines[0], string)
+        string = ioStream.readAllBytes().toString(Charsets.UTF_8)
+        assertEquals(inputString.substring(inputString.indexOf('\n') + 1), string)
+    }
 
     @AfterEach
     fun teardown() {
