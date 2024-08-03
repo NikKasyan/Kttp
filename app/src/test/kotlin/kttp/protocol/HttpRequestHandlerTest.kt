@@ -3,6 +3,8 @@ package kttp.protocol
 import kttp.http.HttpRequestHandler
 import kttp.http.MissingHostHeader
 import kttp.http.protocol.*
+import kttp.http.protocol.transfer.ChunkExtensionTooLong
+import kttp.http.protocol.transfer.chunkString
 import kttp.http.protocol.transfer.chunkStringWithChunkSize
 import kttp.net.IOStream
 import org.junit.jupiter.api.Test
@@ -219,5 +221,29 @@ class HttpRequestHandlerTest {
         val body = request.body
         val bytes = body.readAllBytes()
         assertEquals(wikiString, bytes.toString(Charsets.US_ASCII))
+    }
+
+    @Test
+    fun chunkedInputStream_shouldThrowOnTooLongChunkExtension() {
+        val wikiString = "Wikipedia in\r\n\r\nchunks."
+        val stream = chunkString(wikiString, listOf(
+            4 to "test=1",
+            5 to "test=2",
+            14 to "test=${"3".repeat(3000)}",
+        )).byteInputStream()
+
+
+        val ioStream = IOStream(
+            PostRequest.from(
+                "http://localhost:8080",
+                HttpHeaders().withTransferEncoding(TransferEncoding.CHUNKED),
+                stream)
+                .asStream(),
+            OutputStream.nullOutputStream())
+        val request = HttpRequestHandler().handle(ioStream)
+        assertThrows<ChunkExtensionTooLong> {
+            request.body.readAllBytes()
+        }
+
     }
 }
