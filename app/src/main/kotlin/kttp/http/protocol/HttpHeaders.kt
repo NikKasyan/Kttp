@@ -1,5 +1,6 @@
 package kttp.http.protocol
 
+import java.net.URI
 import java.text.DateFormat
 import java.text.ParseException
 import java.text.SimpleDateFormat
@@ -198,6 +199,11 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
 
     fun withHost(host: String): HttpHeaders {
         headers[CommonHeaders.HOST] = host
+        return this
+    }
+    fun withHost(uri: URI): HttpHeaders {
+        val port = if (uri.port == -1) "" else ":${uri.port}"
+        headers[CommonHeaders.HOST] = "${uri.host}$port"
         return this
     }
 
