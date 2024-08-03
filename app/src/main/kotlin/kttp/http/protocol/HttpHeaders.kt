@@ -58,7 +58,7 @@ fun checkHeaderNotContainsBareCR(header: HttpHeader) {
 }
 
 //Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
-class HttpHeaders(headers: Map<String, String> = HashMap()) {
+class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeader> {
 
     private val headers: MutableMap<String, String>
 
@@ -72,6 +72,10 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) {
 
     constructor(headers: List<HttpHeader>) : this() {
         add(headers)
+    }
+
+    override fun iterator(): Iterator<HttpHeader> {
+        return headers.map { HttpHeader(it.key, it.value) }.iterator()
     }
 
     operator fun set(key: String, value: String) {
@@ -438,7 +442,8 @@ class HttpHeader {
 
 }
 
-class InvalidHeaderStructure(header: String) : InvalidHttpRequest("Header must be of structure key: value. $header is not")
+class InvalidHeaderStructure(header: String) :
+    InvalidHttpRequest("Header must be of structure key: value. $header is not")
 
 class InvalidHeaderName : InvalidHeader("Invalid header name")
 

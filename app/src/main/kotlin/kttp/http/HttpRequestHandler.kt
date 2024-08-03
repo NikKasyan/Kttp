@@ -88,7 +88,8 @@ class HttpRequestHandler {
     private fun readBody(io: IOStream, requestLine: RequestLine, headers: HttpHeaders): HttpBody {
 
         val body = if (requestLine.method.allowsBody())
-            HttpBody(io, headers.contentLength, headers.transferEncodingAsList())
+            if(headers.hasTransferEncoding()) HttpBody.withTransferEncoding(io, headers)
+            else HttpBody(io, headers.contentLengthLong())
         else HttpBody.empty()
 
         log.debug { "Body: $body" }

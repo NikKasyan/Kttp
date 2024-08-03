@@ -1,20 +1,16 @@
 package kttp.http.protocol
 
+import kttp.http.protocol.transfer.ChunkedInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.Charset
 
 
-class HttpBody(body: InputStream = nullInputStream(),
-               val contentLength: Long? = null,
-               transferEncodings: List<TransferEncoding> = emptyList()
-): InputStream() {
-
-    private val body: InputStream
-    init {
-        this.body = body
-    }
+class HttpBody(
+    private val body: InputStream = nullInputStream(),
+    val contentLength: Long? = null
+) : InputStream() {
 
 
     companion object {
@@ -22,14 +18,24 @@ class HttpBody(body: InputStream = nullInputStream(),
 
             return HttpBody(body.byteInputStream(), body.length.toLong())
         }
+
         fun fromBytes(body: ByteArray): HttpBody {
             return HttpBody(ByteArrayInputStream(body), body.size.toLong())
         }
+
+        fun withTransferEncoding(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
+            val transferEncodings = httpHeaders.transferEncodingAsList()
+            if (transferEncodings.isEmpty())
+                return HttpBody(body, httpHeaders.contentLength)
+            return buildTransferPipeline(body, transferEncodings, httpHeaders)
+        }
+
         fun empty(): HttpBody {
             return HttpBody()
         }
 
     }
+
     fun hasContentLength(): Boolean {
         return contentLength != null
     }
@@ -60,7 +66,7 @@ class HttpBody(body: InputStream = nullInputStream(),
     }
 
     override fun readAllBytes(): ByteArray {
-        if(hasContentLength() && contentLength!! < Int.MAX_VALUE)
+        if (hasContentLength() && contentLength!! < Int.MAX_VALUE)
             return body.readNBytes(contentLength.toInt())
         return body.readAllBytes()
     }
@@ -101,4 +107,19 @@ class HttpBody(body: InputStream = nullInputStream(),
         return body.transferTo(out)
     }
 
+}
+
+private fun buildTransferPipeline(
+    body: InputStream,
+    transferEncodings: List<TransferEncoding>,
+    httpHeaders: HttpHeaders
+): HttpBody {
+    var currentBody = body
+    for (transferEncoding in transferEncodings) {
+        currentBody = when (transferEncoding) {
+            TransferEncoding.CHUNKED -> ChunkedInputStream(currentBody, httpHeaders)
+            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding not implemented")
+        }
+    }
+    return HttpBody(currentBody, httpHeaders.contentLength)
 }
