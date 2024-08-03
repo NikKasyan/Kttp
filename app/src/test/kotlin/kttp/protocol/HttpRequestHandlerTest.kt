@@ -3,6 +3,7 @@ package kttp.protocol
 import kttp.http.HttpRequestHandler
 import kttp.http.MissingHostHeader
 import kttp.http.protocol.*
+import kttp.http.protocol.transfer.chunkStringWithChunkSize
 import kttp.net.IOStream
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -201,5 +202,22 @@ class HttpRequestHandlerTest {
         assertThrows<InvalidContentLength> {
             HttpRequestHandler().handle(ioStream)
         }
+    }
+
+    @Test
+    fun requestWithTransferEncodingChunked_shouldBeHandled() {
+        val wikiString = "Wikipedia in\r\n\r\nchunks."
+        val chunkedBody = chunkStringWithChunkSize(wikiString, listOf(4, 5, 14))
+        val remoteRequest = PostRequest.from( "http://localhost:8080",
+            HttpHeaders().withTransferEncoding(TransferEncoding.CHUNKED),
+            HttpBody.fromBytes(chunkedBody.toByteArray()))
+
+        val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
+
+        val request = HttpRequestHandler().handle(ioStream)
+
+        val body = request.body
+        val bytes = body.readAllBytes()
+        assertEquals(wikiString, bytes.toString(Charsets.US_ASCII))
     }
 }
