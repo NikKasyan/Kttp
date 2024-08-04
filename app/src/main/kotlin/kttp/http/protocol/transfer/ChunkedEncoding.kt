@@ -1,18 +1,23 @@
 package kttp.http.protocol.transfer
 
 import kttp.http.protocol.HttpHeaders
+import kttp.net.DefaultInputStream
 import java.io.InputStream
-import java.io.OutputStream
 import java.lang.RuntimeException
 
 private const val CARRIAGE_RETURN: Byte = 0x0d // \r
 private const val NEW_LINE: Byte = 0x0a // \n
 private const val SEMICOLON: Byte = 0x3b // ;
 
+/**
+ * A stream that reads chunked data from an input stream.
+ * @param inputStream The input stream to read from.
+ * @param httpHeaders The headers to populate with the content length.
+ */
 class ChunkedInputStream(
     private val inputStream: InputStream,
     private val httpHeaders: HttpHeaders = HttpHeaders()
-) : InputStream() {
+) : DefaultInputStream() {
 
 
     private var chunkSize = 0
@@ -265,72 +270,10 @@ class ChunkedInputStream(
         get() = transformedDataSize
 
 
-    override fun readAllBytes(): ByteArray {
-        val buffer = ByteArray(4096)
-        var readBytes = 0
-        var data = ByteArray(0)
-        while (readBytes != -1) {
-            readBytes = read(buffer, 0, buffer.size)
-            if (readBytes != -1) {
-                val newData = ByteArray(data.size + readBytes)
-                System.arraycopy(data, 0, newData, 0, data.size)
-                System.arraycopy(buffer, 0, newData, data.size, readBytes)
-                data = newData
-            }
-
-        }
-        return data
-
-    }
-
-    override fun readNBytes(len: Int): ByteArray {
-        val buffer = ByteArray(len)
-        read(buffer)
-        return buffer
-    }
-
-    override fun readNBytes(b: ByteArray?, off: Int, len: Int): Int {
-        return read(b ?: ByteArray(len), off, len)
-    }
-
-    override fun skip(n: Long): Long {
-        var skippedBytes = 0L
-        while (skippedBytes < n) {
-            val buffer = ByteArray(minOf(4096, (n - skippedBytes).toInt()))
-            val readBytes = read(buffer)
-            if (readBytes == -1) {
-                return skippedBytes
-            }
-            skippedBytes += readBytes
-        }
-        return skippedBytes
-    }
-
-    override fun skipNBytes(n: Long) {
-        skip(n)
-    }
-
     override fun available(): Int {
         return availableTransformedData
     }
 
-    override fun markSupported(): Boolean {
-        return false
-    }
-
-    override fun transferTo(out: OutputStream?): Long {
-        var transferredBytes = 0L
-        val buffer = ByteArray(4096)
-        var readBytes = 0
-        while (readBytes != -1) {
-            readBytes = read(buffer)
-            if (readBytes != -1) {
-                out?.write(buffer, 0, readBytes)
-                transferredBytes += readBytes
-            }
-        }
-        return transferredBytes
-    }
 }
 
 enum class ChunkedInputStreamState {

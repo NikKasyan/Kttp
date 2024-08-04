@@ -1,9 +1,8 @@
 package kttp.net
 
 import java.io.InputStream
-import java.io.OutputStream
 
-class CombinedInputStream(vararg streams: InputStream) : InputStream() {
+class CombinedInputStream(vararg streams: InputStream) : DefaultInputStream() {
 
     private val streams = mutableListOf<InputStream>()
 
@@ -16,21 +15,10 @@ class CombinedInputStream(vararg streams: InputStream) : InputStream() {
     fun append(stream: InputStream) {
         streams.add(stream)
     }
-
-    override fun read(): Int {
-        val byteArray = ByteArray(1)
-        val read = read(byteArray, 0, 1)
-        return if (read == -1) -1 else byteArray[0].toInt()
-    }
-
-    override fun read(b: ByteArray): Int {
-        return read(b, 0, b.size)
-    }
-
-    override fun read(b: ByteArray, off: Int, len: Int): Int {
+    override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
         if (closed || streams.isEmpty())
             return -1
-        return readFromStreams(b, off, len)
+        return readFromStreams(bytes, offset, length)
 
     }
 
@@ -57,77 +45,10 @@ class CombinedInputStream(vararg streams: InputStream) : InputStream() {
         }
     }
 
-    override fun readAllBytes(): ByteArray {
-        val bytes = mutableListOf<Byte>()
-        while (true) {
-            val byteArray = ByteArray(1024)
-            val read = read(byteArray)
-            if (read == -1)
-                break
-            bytes.addAll(byteArray.toList().subList(0, read))
-        }
-        return bytes.toByteArray()
-    }
-
-    override fun readNBytes(len: Int): ByteArray {
-        val bytes = ByteArray(len)
-        var remaining = len
-        var read = 0
-        while (remaining > 0) {
-            val readNow = read(bytes, read, remaining)
-            if (readNow == -1)
-                break
-            read += readNow
-            remaining -= readNow
-        }
-        return bytes.copyOf(read)
-    }
-
-    override fun readNBytes(b: ByteArray?, off: Int, len: Int): Int {
-        var remaining = len
-        var read = 0
-        while (remaining > 0) {
-            val readNow = read(b!!, off + read, remaining)
-            if (readNow == -1)
-                break
-            read += readNow
-            remaining -= readNow
-        }
-        return read
-    }
-
-    override fun skip(n: Long): Long {
-        var skipped = 0L
-        while (skipped < n) {
-            val byteArray = ByteArray(1024)
-            val read = read(byteArray)
-            if (read == -1)
-                break
-            skipped += read
-        }
-        return skipped
-    }
-
-    override fun skipNBytes(n: Long) {
-        skip(n)
-    }
-
     override fun available(): Int {
         return streams.sumOf { it.available() }
     }
 
-    override fun transferTo(out: OutputStream?): Long {
-        var transferred = 0L
-        while (true) {
-            val byteArray = ByteArray(1024)
-            val read = read(byteArray)
-            if (read == -1)
-                break
-            out?.write(byteArray, 0, read)
-            transferred += read
-        }
-        return transferred
-    }
 }
 
 fun InputStream.combineWith(vararg streams: InputStream): InputStream {

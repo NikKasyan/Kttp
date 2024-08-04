@@ -6,7 +6,7 @@ import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import kotlin.math.min
 
-class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int = 8192) : InputStream() {
+class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int = 8192) : DefaultInputStream() {
     private val bufferedInputStream = BufferedInputStream(inputStream)
     private val buffer = ByteArray(4096)
     private var bytesRead: Int = 0
@@ -17,16 +17,6 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
         private const val CARRIAGE_RETURN: Byte = 0x0d // \r
         private const val NEW_LINE: Byte = 0x0a // \n
     }
-
-    override fun read(): Int {
-        val buffer = ByteArray(1)
-        val readBytes = read(buffer, 0, 1)
-        if (readBytes == -1)
-            return -1
-        return buffer[0].toInt()
-
-    }
-
     fun readLine(): String {
 
         val byteBuffer = ByteBuffer(maxLineLengthInBytes)
@@ -67,25 +57,15 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
     }
 
     fun readBytesAsString(contentLength: Int, charset: Charset = StandardCharsets.UTF_8): String {
-        val byteArray = readBytes(contentLength)
+        val byteArray = readNBytes(contentLength)
         return String(byteArray, charset)
     }
 
-    private fun readBytes(contentLength: Int): ByteArray {
-        val byteArray = ByteArray(contentLength)
-        read(byteArray, contentLength)
-        return byteArray
-    }
-
-    private fun read(buffer: ByteArray, contentLength: Int): Int {
-        return read(buffer, 0, contentLength)
-    }
-
-    override fun read(buffer: ByteArray, offset: Int, contentLength: Int): Int {
-        val bufferedBytes = readFromInternalBuffer(buffer, offset, contentLength)
-        if (bufferedBytes == contentLength)
+    override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+        val bufferedBytes = readFromInternalBuffer(bytes, offset, length)
+        if (bufferedBytes == length)
             return bufferedBytes
-        val readBytesFromStream = bufferedInputStream.read(buffer, offset + bufferedBytes, contentLength - bufferedBytes)
+        val readBytesFromStream = bufferedInputStream.read(bytes, offset + bufferedBytes, length - bufferedBytes)
         return if (readBytesFromStream == -1) {
             if (bufferedBytes == 0)
                 -1
@@ -121,9 +101,7 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
 
 }
 
-class LineTooLongException(msg: String, val line: String) : RuntimeException(msg) {
-
-}
+class LineTooLongException(msg: String, val line: String) : RuntimeException(msg)
 
 private class ByteBuffer(val maxCapacity: Int) {
     private val buffer = ByteArray(maxCapacity)

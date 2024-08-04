@@ -1,6 +1,7 @@
 package kttp.http.protocol
 
 import kttp.http.protocol.transfer.ChunkedInputStream
+import kttp.net.DefaultInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -10,7 +11,7 @@ import java.nio.charset.Charset
 class HttpBody(
     private val body: InputStream = nullInputStream(),
     val contentLength: Long? = null
-) : InputStream() {
+) : DefaultInputStream() {
 
 
     companion object {
@@ -49,16 +50,8 @@ class HttpBody(
     //////////////////
     // InputStream //
     ////////////////
-    override fun read(): Int {
-        return body.read()
-    }
-
-    override fun read(b: ByteArray): Int {
-        return body.read(b)
-    }
-
-    override fun read(b: ByteArray, off: Int, len: Int): Int {
-        return body.read(b, off, len)
+    override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+        return body.read(bytes, offset, length)
     }
 
     override fun close() {
@@ -67,7 +60,7 @@ class HttpBody(
 
     override fun readAllBytes(): ByteArray {
         if (hasContentLength() && contentLength!! < Int.MAX_VALUE)
-            return body.readNBytes(contentLength.toInt())
+            return readNBytes(contentLength.toInt())
         return body.readAllBytes()
     }
 
