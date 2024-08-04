@@ -13,6 +13,7 @@ object CommonHeaders {
     const val HOST = "Host"
     const val ACCEPT_LANGUAGE = "Accept-Language"
     const val TRANSFER_ENCODING = "Transfer-Encoding"
+    const val TE = "TE"
     const val DATE = "Date"
     const val ACCEPT = "Accept"
     //Todo: Add missing Common Headers
@@ -20,21 +21,66 @@ object CommonHeaders {
 
 }
 
-enum class TransferEncoding(val value: String) {
-    CHUNKED("chunked"),
-    COMPRESS("compress"),
-    DEFLATE("deflate"),
-    GZIP("gzip"),
-    IDENTITY("identity");
+class TransferEncoding private constructor(val value: String, val parameters: Map<String, String> = emptyMap()) {
 
     companion object {
         fun byEncoding(value: String): TransferEncoding {
-            try {
-                return values().first { it.value.equals(value, ignoreCase = true) }
-            } catch (e: NoSuchElementException) {
-                throw UnknownTransferEncoding(value)
+            return when (value.lowercase()) {
+                CHUNKED.value -> CHUNKED
+                IDENTITY.value -> IDENTITY
+                GZIP.value -> GZIP
+                "x-gzip" -> GZIP
+                COMPRESS.value -> COMPRESS
+                "x-compress" -> COMPRESS
+                DEFLATE.value -> DEFLATE
+                else -> {
+                    if (value.contains(";"))
+                        byEncodingWithParameter(value)
+                    else
+                        throw UnknownTransferEncoding(value)
+                }
             }
         }
+
+        private fun byEncodingWithParameter(value: String): TransferEncoding {
+            val parts = value.split(";", limit = 2)
+            if (parts.size == 1)
+                return TransferEncoding(parts[0])
+            val parameters = parts[1].split(";").map {
+                val keyValue = it.split("=", limit = 2)
+                if (keyValue.size == 1)
+                    return@map Pair(keyValue[0], "")
+                Pair(keyValue[0], keyValue[1])
+            }.toMap()
+            val encoding = byEncoding(parts[0])
+            return TransferEncoding(encoding.value, parameters)
+        }
+
+        val CHUNKED = TransferEncoding("chunked")
+        val IDENTITY = TransferEncoding("identity")
+        val GZIP = TransferEncoding("gzip")
+        val COMPRESS = TransferEncoding("compress")
+        val DEFLATE = TransferEncoding("deflate")
+
+    }
+
+    override fun toString(): String {
+        return value
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as TransferEncoding
+
+        if (value != other.value) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return value.hashCode()
     }
 }
 
@@ -201,6 +247,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         headers[CommonHeaders.HOST] = host
         return this
     }
+
     fun withHost(uri: URI): HttpHeaders {
         val port = if (uri.port == -1) "" else ":${uri.port}"
         headers[CommonHeaders.HOST] = "${uri.host}$port"
