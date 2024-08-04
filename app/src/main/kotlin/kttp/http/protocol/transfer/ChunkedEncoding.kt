@@ -57,16 +57,16 @@ class ChunkedInputStream(
         return read(b, 0, b.size)
     }
 
-    override fun read(b: ByteArray, off: Int, len: Int): Int {
-        val readBytesFromBuffer = readFromInternalBuffer(b, off, len)
-        if (readBytesFromBuffer == len) {
+    override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+        val readBytesFromBuffer = readFromInternalBuffer(bytes, offset, length)
+        if (readBytesFromBuffer == length) {
             return readBytesFromBuffer
         }
-        val newReadBytes = readIntoInternalBuffer(len - readBytesFromBuffer)
+        val newReadBytes = readIntoInternalBuffer(length - readBytesFromBuffer)
         if (newReadBytes == -1) {
             return if (readBytesFromBuffer == 0) -1 else readBytesFromBuffer
         }
-        return readBytesFromBuffer + read(b, off + readBytesFromBuffer, len - readBytesFromBuffer)
+        return readBytesFromBuffer + read(bytes, offset + readBytesFromBuffer, length - readBytesFromBuffer)
     }
 
     private fun readFromInternalBuffer(b: ByteArray, off: Int, len: Int): Int {
