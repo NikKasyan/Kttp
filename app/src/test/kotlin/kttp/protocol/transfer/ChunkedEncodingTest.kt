@@ -201,6 +201,19 @@ class ChunkedEncodingTest {
 
     }
 
+    @Test
+    fun chunkedInputStream_shouldHandleLongChunks() {
+        val payload = "This is a test".repeat(1000)
+        val stream = chunkStringWithChunkSize(payload, listOf(1000)).byteInputStream()
+
+        val chunkedInputStream = ChunkedInputStream(stream)
+
+        val bytes = chunkedInputStream.readAllBytes()
+
+        assertEquals(payload.length, bytes.size)
+        assertEquals(payload, bytes.toString(Charsets.US_ASCII))
+
+    }
 
 
 }
