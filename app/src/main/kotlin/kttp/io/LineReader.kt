@@ -1,4 +1,4 @@
-package kttp.net
+package kttp.io
 
 import java.io.BufferedInputStream
 import java.io.InputStream
@@ -12,14 +12,9 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
     private var bytesRead: Int = 0
     private var position: Int = 0
 
-
-    companion object {
-        private const val CARRIAGE_RETURN: Byte = 0x0d // \r
-        private const val NEW_LINE: Byte = 0x0a // \n
-    }
     fun readLine(): String {
 
-        val byteBuffer = ByteBuffer(maxLineLengthInBytes)
+        val cappedByteBuffer = CappedByteBuffer(maxLineLengthInBytes)
 
         while (true) {
             if (isBufferEmpty()) {
@@ -27,7 +22,7 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
                 position = 0
 
                 if (bytesRead <= 0) {
-                    return byteBuffer.toString()
+                    return cappedByteBuffer.toString()
                 }
 
             }
@@ -37,21 +32,21 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
             while(!isBufferEmpty()) {
                 val currentByte: Byte = buffer[position++]
                 val bytesToAdd = position - startPosition
-                if (byteBuffer.exceedsMaxCapacity(bytesToAdd)) {
-                    throw LineTooLongException("Line exceeds max length of $maxLineLengthInBytes", byteBuffer.toString())
+                if (cappedByteBuffer.exceedsMaxCapacity(bytesToAdd)) {
+                    throw LineTooLongException("Line exceeds max length of $maxLineLengthInBytes", cappedByteBuffer.toString())
                 }
                 readCr = when(currentByte) {
                     CARRIAGE_RETURN -> 1
                     NEW_LINE -> {
-                        byteBuffer.tryAppend(buffer, startPosition, bytesToAdd - (1 + readCr))
-                        return byteBuffer.toString()
+                        cappedByteBuffer.tryAppend(buffer, startPosition, bytesToAdd - (1 + readCr))
+                        return cappedByteBuffer.toString()
                     }
                     else ->
                         0
                 }
             }
 
-            byteBuffer.tryAppend(buffer, startPosition, position - startPosition)
+            cappedByteBuffer.tryAppend(buffer, startPosition, position - startPosition)
 
         }
     }
@@ -103,7 +98,7 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
 
 class LineTooLongException(msg: String, val line: String) : RuntimeException(msg)
 
-private class ByteBuffer(val maxCapacity: Int) {
+private class CappedByteBuffer(val maxCapacity: Int) {
     private val buffer = ByteArray(maxCapacity)
     private var size: Int = 0
 

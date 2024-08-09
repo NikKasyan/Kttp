@@ -1,5 +1,7 @@
 package kttp.net
 
+import kttp.io.CombinedInputStream
+import kttp.io.combineWith
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 

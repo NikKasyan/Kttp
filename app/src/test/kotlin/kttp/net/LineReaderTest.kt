@@ -1,5 +1,6 @@
 package kttp.net
 
+import kttp.io.LineReader
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import java.io.ByteArrayInputStream

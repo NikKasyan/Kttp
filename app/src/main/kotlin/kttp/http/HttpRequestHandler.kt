@@ -2,8 +2,8 @@ package kttp.http
 
 import kttp.http.protocol.*
 import kttp.log.Logger
-import kttp.net.IOStream
-import kttp.net.LineTooLongException
+import kttp.io.IOStream
+import kttp.io.LineTooLongException
 
 
 private val startsWithWhiteSpace = Regex("^\\s+")

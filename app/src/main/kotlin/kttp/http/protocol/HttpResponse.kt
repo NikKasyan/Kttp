@@ -1,7 +1,7 @@
 package kttp.http.protocol
 
-import kttp.net.CombinedInputStream
-import kttp.net.IOStream
+import kttp.io.CombinedInputStream
+import kttp.io.IOStream
 import java.io.InputStream
 
 

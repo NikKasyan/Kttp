@@ -1,5 +1,6 @@
 package kttp.net
 
+import kttp.io.IOStream
 import java.net.Socket
 import java.nio.charset.Charset
 import java.time.Duration

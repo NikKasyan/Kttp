@@ -1,7 +1,7 @@
 package kttp.http.protocol
 
 import kttp.http.protocol.transfer.ChunkedInputStream
-import kttp.net.DefaultInputStream
+import kttp.io.DefaultInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream

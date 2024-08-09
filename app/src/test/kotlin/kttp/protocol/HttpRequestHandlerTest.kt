@@ -6,7 +6,7 @@ import kttp.http.protocol.*
 import kttp.http.protocol.transfer.ChunkExtensionTooLong
 import kttp.http.protocol.transfer.chunkString
 import kttp.http.protocol.transfer.chunkStringWithChunkSize
-import kttp.net.IOStream
+import kttp.io.IOStream
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.ByteArrayOutputStream

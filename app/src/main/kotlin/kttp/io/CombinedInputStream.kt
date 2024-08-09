@@ -1,4 +1,4 @@
-package kttp.net
+package kttp.io
 
 import java.io.InputStream
 

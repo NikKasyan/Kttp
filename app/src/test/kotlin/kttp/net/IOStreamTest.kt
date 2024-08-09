@@ -1,5 +1,8 @@
 package kttp.net
 
+import kttp.io.EndOfStream
+import kttp.io.IOStream
+import kttp.io.StreamAlreadyClosed
 import kttp.mock.SimpleTestServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions

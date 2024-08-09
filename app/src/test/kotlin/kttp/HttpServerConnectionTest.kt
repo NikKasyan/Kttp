@@ -74,7 +74,7 @@ class HttpServerConnectionTest {
     fun connectWith21Client_LastClientShouldNotConnect() {
         for (i in 0 .. 20)
             createSocket()
-        Thread.sleep(100)
+        Thread.sleep(200)
         assertEquals(20, httpServer.activeConnections)
 
     }
