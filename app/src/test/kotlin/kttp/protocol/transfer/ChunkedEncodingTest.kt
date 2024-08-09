@@ -183,4 +183,24 @@ class ChunkedEncodingTest {
 
     }
 
+    @Test
+    fun chunkedInputStream_shouldHandleLongStreamsWithHeaders() {
+        val payload = "This is a test".repeat(1000)
+        val stream = chunkString(payload, headers=HttpHeaders().add("Test" to "Test").withAccept("de")).byteInputStream()
+
+        val headers = HttpHeaders()
+        val chunkedInputStream = ChunkedInputStream(stream, headers)
+
+        val bytes = chunkedInputStream.readAllBytes()
+
+        assertEquals(payload.length, bytes.size)
+        assertEquals(payload, bytes.toString(Charsets.US_ASCII))
+        assertEquals("Test", headers["Test"])
+        assertEquals("de", headers.accept())
+
+
+    }
+
+
+
 }
