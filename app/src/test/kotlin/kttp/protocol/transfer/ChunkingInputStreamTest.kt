@@ -1,10 +1,13 @@
 package kttp.protocol.transfer
 
 import kttp.http.protocol.HttpHeaders
+import kttp.http.protocol.transfer.ChunkedInputStream
 import kttp.http.protocol.transfer.ChunkingInputStream
 import kttp.http.protocol.transfer.chunkString
+import kttp.mock.RepeatableInputStream
 import org.junit.jupiter.api.Test
 import java.nio.charset.Charset
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class ChunkingInputStreamTest {
@@ -106,5 +109,31 @@ class ChunkingInputStreamTest {
         val string = stream.readAllBytes().toString(Charset.defaultCharset())
 
         assertEquals(chunkedString, string)
+    }
+    @Test
+    fun chunkingInputStream_withDifferentLengths_shouldBeUnchunkedCorrectly() {
+
+        val stream = RepeatableInputStream("Wiki\r\npedia in\r\n\r\nchunks.".toByteArray(), 0L)
+        var current = 0
+        try {
+
+            for (i in 1..30000) {
+                current = i
+                stream.length = i.toLong()
+                stream.reset()
+                val chunkings = createChunkings(i)
+                val input = chunkString(stream.readAllBytes().toString(Charsets.US_ASCII), chunkings)
+                val chunkedInputStream = ChunkedInputStream(input.byteInputStream())
+
+                stream.reset()
+                val expectedValue = stream.readAllBytes()
+                val actualValue = chunkedInputStream.readAllBytes()
+                assertEquals(expectedValue.size, actualValue.size, "Failed at $i")
+                assertContentEquals(expectedValue, actualValue, "Failed at $i")
+            }
+        } catch (e: Exception) {
+            println("Failed at $current")
+            throw e
+        }
     }
 }

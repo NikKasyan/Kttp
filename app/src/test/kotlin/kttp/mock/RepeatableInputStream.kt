@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-class RepeatableInputStream(private val byteArray: ByteArray, private val length: Long = byteArray.size.toLong()) :
+class RepeatableInputStream(private val byteArray: ByteArray, var length: Long = byteArray.size.toLong()) :
     DefaultInputStream() {
 
     private var bytesRead: Long = 0
