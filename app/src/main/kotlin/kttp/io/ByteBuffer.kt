@@ -14,13 +14,15 @@ class ByteBuffer(private val buffer: ByteArray,
     }
 
     fun hasCapacityFor(neededBytes: Int): Boolean {
-        return capacity() >= neededBytes
+        return this.capacity >= neededBytes
     }
     fun hasCapacity() = hasCapacityFor(1)
 
-    fun capacity() = buffer.size - length
+    private val capacity
+        get() = buffer.size - length
 
-    fun available() = length - readPosition
+    private val availableToRead
+        get() = length - readPosition
     fun clear() {
         length = 0
         readPosition = 0
@@ -28,8 +30,8 @@ class ByteBuffer(private val buffer: ByteArray,
 
     fun moveFrom(src: ByteBuffer, maxLength: Int = Int.MAX_VALUE): Int {
         val bytesToCopy = minOf(
-            src.available(),
-            capacity(),
+            src.availableToRead,
+            this.capacity,
             maxLength
         )
         System.arraycopy(src.buffer, src.readPosition, buffer, length, bytesToCopy)
@@ -43,7 +45,7 @@ class ByteBuffer(private val buffer: ByteArray,
                  maxLength: Int = Int.MAX_VALUE) {
         val bytesToCopy = minOf(
             length,
-            capacity(),
+            this.capacity,
             maxLength
         )
         System.arraycopy(src, offset, buffer, destOffset, bytesToCopy)
@@ -51,15 +53,14 @@ class ByteBuffer(private val buffer: ByteArray,
     }
 
     fun moveInto(dest: ByteArray, offset: Int, length: Int): Int {
-        val bytesToCopy = minOf(length, this.length)
+        val bytesToCopy = minOf(length, this.availableToRead)
         System.arraycopy(buffer, readPosition, dest, offset, bytesToCopy)
         this.readPosition += bytesToCopy
-        this.length -= bytesToCopy
         return bytesToCopy
     }
 
     fun fillWith(inputStream: InputStream) {
-        val bytesToRead = capacity()
+        val bytesToRead = this.capacity
         val readBytes = inputStream.read(buffer, length, bytesToRead)
         length += readBytes
     }
@@ -74,7 +75,8 @@ class ByteBuffer(private val buffer: ByteArray,
     }
 
     fun toString(charset: Charset = Charsets.US_ASCII): String {
-        val bytes = buffer.copyOfRange(readPosition, readPosition + length)
+        if(length == -1) return ""
+        val bytes = buffer.copyOfRange(readPosition, length)
         return String(bytes, charset)
     }
 
