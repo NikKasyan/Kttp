@@ -116,20 +116,22 @@ class ChunkingInputStreamTest {
         val stream = RepeatableInputStream("Wiki\r\npedia in\r\n\r\nchunks.".toByteArray(), 0L)
         var current = 0
         try {
+            for(bufferSize in bufferSizes) {
+                for (i in 1..10000) {
+                    current = i
+                    stream.length = i.toLong()
+                    stream.reset()
+                    val chunkings = createChunkings(i)
+                    val input = chunkString(stream.readAllBytes().toString(Charsets.US_ASCII), chunkings)
+                    val chunkedInputStream = ChunkedInputStream(input.byteInputStream())
 
-            for (i in 1..30000) {
-                current = i
-                stream.length = i.toLong()
-                stream.reset()
-                val chunkings = createChunkings(i)
-                val input = chunkString(stream.readAllBytes().toString(Charsets.US_ASCII), chunkings)
-                val chunkedInputStream = ChunkedInputStream(input.byteInputStream())
-
-                stream.reset()
-                val expectedValue = stream.readAllBytes()
-                val actualValue = chunkedInputStream.readAllBytes()
-                assertEquals(expectedValue.size, actualValue.size, "Failed at $i")
-                assertContentEquals(expectedValue, actualValue, "Failed at $i")
+                    stream.reset()
+                    val expectedValue = stream.readAllBytes()
+                    val actualValue = readAll(chunkedInputStream, 8)
+                    assertEquals(expectedValue.size, actualValue.size, "Failed at $i with buffer size $bufferSize")
+                    assertContentEquals(expectedValue, actualValue, "Failed at $i with buffer size $bufferSize")
+                    assertEquals(expectedValue.toString(Charsets.US_ASCII), actualValue.toString(Charsets.US_ASCII), "Failed at $i with buffer size $bufferSize")
+                }
             }
         } catch (e: Exception) {
             println("Failed at $current")
