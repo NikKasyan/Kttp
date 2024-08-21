@@ -11,6 +11,7 @@ abstract class TransformingInputStream(private val inputStream: InputStream) : D
 
     val isStreamFinished
         get() = buffer.length == -1
+
     override fun close() {
         inputStream.close()
     }
@@ -25,6 +26,8 @@ abstract class TransformingInputStream(private val inputStream: InputStream) : D
         val newReadBytes = readIntoInternalBuffer(length - readBytesFromBuffer)
         if (newReadBytes == -1) {
             return if (readBytesFromBuffer == 0) -1 else readBytesFromBuffer
+        } else if(newReadBytes == 0) {
+            return readBytesFromBuffer
         }
         return readBytesFromBuffer + read(bytes, offset + readBytesFromBuffer, length - readBytesFromBuffer)
     }
@@ -49,11 +52,13 @@ abstract class TransformingInputStream(private val inputStream: InputStream) : D
             if (buffer.hasBeenRead() && !isStreamFinished) {
                 buffer.clear()
                 buffer.fillWith(inputStream)
-                if (buffer.length == -1){
-                    break
-                }
+                if (buffer.length == -1) {
+                    if (!canTransform())
+                        break
+                } else
+                    totalReadBytes += buffer.length
 
-                totalReadBytes += buffer.length
+
             }
             transform()
         }

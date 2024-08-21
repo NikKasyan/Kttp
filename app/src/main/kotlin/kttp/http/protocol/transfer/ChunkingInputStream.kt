@@ -49,8 +49,14 @@ class ChunkingInputStream(
     private val headerBytes = ByteBuffer(2050)
 
     override fun canTransform(): Boolean {
-        return state != ChunkingState.DONE
-                && transformedData.hasCapacity()
+        if(state == ChunkingState.DONE || !transformedData.hasCapacity())
+            return false
+        if(state == ChunkingState.TRAILERS)
+            return transformedData.hasCapacityFor(2)
+        if(state == ChunkingState.CHUNK_SIZE)
+            return transformedData.hasCapacityFor(3)
+        return true
+
     }
 
     override fun transform() {
