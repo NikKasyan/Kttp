@@ -9,9 +9,16 @@
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
     id("org.jetbrains.kotlin.jvm") version "1.8.10"
-
     // Apply the application plugin to add support for building a CLI application in Java.
     application
+
+    id("org.jetbrains.kotlin.plugin.allopen") version "1.9.21"
+    id("org.jetbrains.kotlinx.benchmark") version "0.4.11"
+
+}
+
+allOpen {
+    annotation("org.openjdk.jmh.annotations.State")
 }
 
 repositories {
@@ -23,8 +30,11 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     // Use the JUnit 5 integration.
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.9.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.4.11")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
     implementation("ch.qos.logback:logback-classic:1.5.6")
+
+//    add("benchmarkImplementation", sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + sourceSets.test.get().output + sourceSets.test.get().runtimeClasspath)
 
 }
 
@@ -35,9 +45,27 @@ java {
     }
 }
 
+
+sourceSets {
+    create("benchmark")
+}
+
+kotlin {
+    sourceSets{
+        getByName("benchmark").kotlin.srcDir("src/benchmark/kotlin")
+    }
+}
+
+
 application {
     // Define the main class for the application.
     mainClass.set("kttp.AppKt")
+}
+
+benchmark {
+    targets {
+        register("benchmark")
+    }
 }
 
 tasks.named<Test>("test") {
