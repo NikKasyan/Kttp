@@ -37,6 +37,13 @@ enum class HttpStatus(val code: Int, private val msg: String = "") {
     UNSUPPORTED_MEDIA_TYPE(415),
     REQUESTED_RANGE_NOT_SATISFIABLE(416, "Requested range not satisfiable"),
     EXPECTATION_FAILED(417),
+    IM_A_TEAPOT(418, "I'm a teapot"), // RFC 2324 but this is not rfc compliant
+    // https://www.rfc-editor.org/rfc/rfc9110.html#name-418-unused
+    // but come on, it's a teapot
+    MISDIRECTED_REQUEST(421, "Misdirected Request"),
+    UNPROCESSABLE_CONTENT(422, "Unprocessable Content"),
+    UPGRADE_REQUIRED(426, "Upgrade Required"),
+    PRECONDITION_REQUIRED(428, "Precondition Required"),
 
     INTERNAL_SERVER_ERROR(500),
     NOT_IMPLEMENTED(501),
