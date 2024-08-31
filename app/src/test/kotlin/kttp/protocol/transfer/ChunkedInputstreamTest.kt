@@ -216,37 +216,91 @@ class ChunkedInputstreamTest {
     }
 
     @Test
-    fun chunkingInputStream_withDifferentLengths_shouldBeUnchunkedCorrectly() {
+    fun chunkedInputStream_withDifferentLengths_shouldBeUnchunkedCorrectly() {
 
         val stream = RepeatableInputStream("Wiki\r\npedia in\r\n\r\nchunks.".toByteArray(), 0L)
         var current = 0
-        try{
+        try {
             for(bufferSize in bufferSizes) {
-
                 for (i in 1..10000) {
                     current = i
                     stream.length = i.toLong()
                     stream.reset()
                     val chunkings = createChunkings(i)
-                    val chunkingInputStream = ChunkingInputStream(stream, chunkings = chunkings)
+                    val input = chunkString(stream.readAllBytes().toString(Charsets.US_ASCII), chunkings)
+                    val headers = HttpHeaders()
+                    val chunkedInputStream = ChunkedInputStream(input.byteInputStream(),headers )
 
-                    val expectedValue =
-                        chunkString(stream.readAllBytes().toString(Charsets.US_ASCII), chunkings).toByteArray()
                     stream.reset()
-                    val actualValue = readAll(chunkingInputStream, bufferSize)
+                    val expectedValue = stream.readAllBytes()
+                    val actualValue = readAll(chunkedInputStream, 8)
                     assertEquals(expectedValue.size, actualValue.size, "Failed at $i with buffer size $bufferSize")
-                    assertEquals(
-                        expectedValue.toString(Charsets.US_ASCII),
-                        actualValue.toString(Charsets.US_ASCII),
-                        "Failed at $i with buffer size $bufferSize"
-                    )
+                    assertContentEquals(expectedValue, actualValue, "Failed at $i with buffer size $bufferSize")
+                    assertEquals(expectedValue.toString(Charsets.US_ASCII), actualValue.toString(Charsets.US_ASCII), "Failed at $i with buffer size $bufferSize")
+                    assertEquals(i.toLong(), headers.contentLengthLong())
                 }
             }
-        }catch(e: Exception){
+        } catch (e: Exception) {
             println("Failed at $current")
             throw e
         }
     }
 
+    @Test
+    fun invalidChunkSize_shouldThrow() {
+        val stream = """
+            4\r
+            Wiki\r
+            5\r
+            pedia\r
+            D\r
+             in\r
+            \r
+            chunks.\r
+            0\r
+        """.trimIndent().replace("\\r","\r").byteInputStream()
+
+        val chunkedInputStream = ChunkedInputStream(stream)
+
+        assertThrows<InvalidChunkSize> {
+            chunkedInputStream.readAllBytes()
+        }
+
+    }
+
+    @Test
+    fun invaliTrailer_shouldThrow() {
+        val stream = """
+            4\r
+            Wiki\r
+            5\r
+            pedia\r
+            E\r
+             in\r
+            \r
+            chunks.\r
+            0\r
+            Expires Wed, 21 Oc\r
+            """.trimIndent().replace("\\r","\r").byteInputStream()
+
+        val headers = HttpHeaders()
+        val chunkedInputStream = ChunkedInputStream(stream, headers)
+
+        assertThrows<InvalidTrailer> {
+            chunkedInputStream.readAllBytes()
+        }
+    }
+
+    @Test
+    fun emptyStream_shouldReturnEmpty() {
+        val stream = "".byteInputStream()
+
+        val chunkedInputStream = ChunkedInputStream(stream)
+
+        val bytes = chunkedInputStream.readAllBytes()
+
+        assertEquals("", bytes.toString(Charsets.US_ASCII))
+
+    }
 
 }

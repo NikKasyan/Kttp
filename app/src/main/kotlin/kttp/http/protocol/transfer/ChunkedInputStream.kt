@@ -6,8 +6,8 @@ import java.io.InputStream
 import java.lang.RuntimeException
 
 /**
- * A stream that reads chunked data from an input stream.
- * @param inputStream The input stream to read from.
+ * A stream that reads chunked data from an input stream and converts it to a stream with the data unchunked.
+ * @param inputStream The input stream to read from being a correct chunked encoded stream.
  * @param httpHeaders The headers to populate with the content length.
  */
 class ChunkedInputStream(
@@ -27,13 +27,19 @@ class ChunkedInputStream(
 
     private val headerBytes = ByteBuffer(2050)
     override fun canTransform(): Boolean {
+        if((state == ChunkingState.CHUNK_DATA || state == ChunkingState.CHUNK_SIZE) && isStreamFinished)
+            return false
         return state != ChunkingState.DONE
                 && transformedData.hasCapacity()
+
     }
+
 
     override fun transform() {
 
-        while ((!buffer.hasBeenRead() || isStreamFinished) && canTransform()) {
+
+        while ((!buffer.hasBeenRead()|| isStreamFinished) && canTransform()) {
+
             when (state) {
                 ChunkingState.CHUNK_SIZE -> parseChunkSize()
                 ChunkingState.CHUNK_SIZE_EXT -> parseChunkSizeExt()
@@ -71,7 +77,6 @@ class ChunkedInputStream(
                 throw InvalidChunkSize("Chunk size too big")
             }
         }
-        contentLength += chunkSize
     }
 
     private inline fun parseSingleHexDigit(byte: Byte): Int {
@@ -112,6 +117,7 @@ class ChunkedInputStream(
             state = if (chunkSize == 0) {
                 ChunkingState.TRAILERS
             } else {
+                contentLength += chunkSize
                 ChunkingState.CHUNK_DATA
             }
 
@@ -174,12 +180,14 @@ class ChunkedInputStream(
 
 }
 
+open class InvalidChunkedStream(msg: String) : RuntimeException(msg)
 
-class InvalidChunkSize(msg: String) : RuntimeException(msg)
 
-class InvalidTrailer(msg: String) : RuntimeException(msg)
+class InvalidChunkSize(msg: String) : InvalidChunkedStream(msg)
 
-class InvalidState(msg: String) : RuntimeException(msg)
+class InvalidTrailer(msg: String) : InvalidChunkedStream(msg)
 
-class ChunkExtensionTooLong(msg: String) : RuntimeException(msg)
+class InvalidState(msg: String) : InvalidChunkedStream(msg)
+
+class ChunkExtensionTooLong(msg: String) : InvalidChunkedStream(msg)
 
