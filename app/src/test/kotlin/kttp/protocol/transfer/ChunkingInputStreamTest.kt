@@ -110,30 +110,35 @@ class ChunkingInputStreamTest {
 
         assertEquals(chunkedString, string)
     }
+
     @Test
     fun chunkingInputStream_withDifferentLengths_shouldBeUnchunkedCorrectly() {
 
         val stream = RepeatableInputStream("Wiki\r\npedia in\r\n\r\nchunks.".toByteArray(), 0L)
         var current = 0
-        try {
+        try{
             for(bufferSize in bufferSizes) {
+
                 for (i in 1..10000) {
                     current = i
                     stream.length = i.toLong()
                     stream.reset()
                     val chunkings = createChunkings(i)
-                    val input = chunkString(stream.readAllBytes().toString(Charsets.US_ASCII), chunkings)
-                    val chunkedInputStream = ChunkedInputStream(input.byteInputStream())
+                    val chunkingInputStream = ChunkingInputStream(stream,chunkings = chunkings)
 
+                    val expectedValue =
+                        chunkString(stream.readAllBytes().toString(Charsets.US_ASCII), chunkings).toByteArray()
                     stream.reset()
-                    val expectedValue = stream.readAllBytes()
-                    val actualValue = readAll(chunkedInputStream, 8)
+                    val actualValue = readAll(chunkingInputStream, bufferSize)
                     assertEquals(expectedValue.size, actualValue.size, "Failed at $i with buffer size $bufferSize")
-                    assertContentEquals(expectedValue, actualValue, "Failed at $i with buffer size $bufferSize")
-                    assertEquals(expectedValue.toString(Charsets.US_ASCII), actualValue.toString(Charsets.US_ASCII), "Failed at $i with buffer size $bufferSize")
+                    assertEquals(
+                        expectedValue.toString(Charsets.US_ASCII),
+                        actualValue.toString(Charsets.US_ASCII),
+                        "Failed at $i with buffer size $bufferSize"
+                    )
                 }
             }
-        } catch (e: Exception) {
+        }catch(e: Exception){
             println("Failed at $current")
             throw e
         }
