@@ -60,7 +60,7 @@ class ChunkingInputStream(
     }
 
     override fun transform() {
-        while (canTransform() && (!buffer.hasBeenRead() || isStreamFinished)) {
+        while (canTransform() && (!buffer.isFullyRead() || isStreamFinished)) {
             when (state) {
                 ChunkingState.CHUNK_SIZE -> writeChunkSize()
                 ChunkingState.CHUNK_SIZE_EXT -> writeChunkSizeExt()
@@ -77,7 +77,7 @@ class ChunkingInputStream(
     }
 
     private fun writeChunkSize(): Int {
-        if(buffer.hasBeenRead()){
+        if(buffer.isFullyRead()){
             if(transformedData.hasCapacityFor(3)) {
                 transformedData += '0'.code.toByte()
                 transformedData += CARRIAGE_RETURN
@@ -160,7 +160,7 @@ class ChunkingInputStream(
     private fun writeTrailers() {
         while (headerIterator.hasNext()) {
 
-            if (headerBytes.hasBeenRead()) {
+            if (headerBytes.isFullyRead()) {
                 headerBytes.clear()
                 val header = headerIterator.next()
                 val newHeaderBytes = header.toString().toByteArray()

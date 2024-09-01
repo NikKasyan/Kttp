@@ -4,8 +4,16 @@ import java.io.InputStream
 import java.nio.charset.Charset
 
 class ByteBuffer(private val buffer: ByteArray,
-                 var length: Int = 0,
                  private var readPosition: Int = 0) {
+
+    var length: Int = 0
+        private set
+
+    private val capacity
+        get() = buffer.size - length
+
+    private val availableToRead
+        get() = length - readPosition
 
     constructor(size: Int) : this(ByteArray(size))
 
@@ -18,11 +26,6 @@ class ByteBuffer(private val buffer: ByteArray,
     }
     fun hasCapacity() = hasCapacityFor(1)
 
-    private val capacity
-        get() = buffer.size - length
-
-    private val availableToRead
-        get() = length - readPosition
     fun clear() {
         length = 0
         readPosition = 0
@@ -53,7 +56,7 @@ class ByteBuffer(private val buffer: ByteArray,
     }
 
     fun moveInto(dest: ByteArray, offset: Int, length: Int): Int {
-        val bytesToCopy = minOf(length, this.availableToRead)
+        val bytesToCopy = maxOf(minOf(length, this.availableToRead), 0)
         System.arraycopy(buffer, readPosition, dest, offset, bytesToCopy)
         this.readPosition += bytesToCopy
         return bytesToCopy
@@ -65,9 +68,9 @@ class ByteBuffer(private val buffer: ByteArray,
         length += readBytes
     }
 
-    fun hasBeenRead(): Boolean = readPosition >= length
+    fun isFullyRead(): Boolean = readPosition >= length
 
-    fun isEmpty() = length == 0 || hasBeenRead()
+    fun isEmpty() = length == 0 || isFullyRead()
 
     fun maxCapacity() = buffer.size
     fun readByte(): Byte {

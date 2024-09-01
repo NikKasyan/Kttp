@@ -40,7 +40,7 @@ abstract class TransformingInputStream(private val inputStream: InputStream) : D
     }
 
     private fun readIntoInternalBuffer(neededBytes: Int): Int {
-        if (transformedData.hasBeenRead()) {
+        if (transformedData.isFullyRead()) {
             transformedData.clear()
         }
         var totalReadBytes = 0
@@ -49,7 +49,7 @@ abstract class TransformingInputStream(private val inputStream: InputStream) : D
             transformedData.hasCapacity() &&
             canTransform()
         ) {
-            if (buffer.hasBeenRead() && !isStreamFinished) {
+            if (buffer.isFullyRead() && !isStreamFinished) {
                 buffer.clear()
                 buffer.fillWith(inputStream)
                 if (buffer.length == -1) {

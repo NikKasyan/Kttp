@@ -38,7 +38,7 @@ class ChunkedInputStream(
     override fun transform() {
 
 
-        while ((!buffer.hasBeenRead()|| isStreamFinished) && canTransform()) {
+        while ((!buffer.isFullyRead()|| isStreamFinished) && canTransform()) {
 
             when (state) {
                 ChunkingState.CHUNK_SIZE -> parseChunkSize()
@@ -60,7 +60,7 @@ class ChunkedInputStream(
 
     private fun parseChunkSize() {
         chunkExtensionPosition = 0
-        while (!buffer.hasBeenRead()) {
+        while (!buffer.isFullyRead()) {
             val byte = buffer.readByte()
             if (byte == CARRIAGE_RETURN) {
                 state = ChunkingState.CHUNK_SIZE_EOL
@@ -90,7 +90,7 @@ class ChunkedInputStream(
 
     private fun parseChunkSizeExt() {
         var pos = 0
-        while (!buffer.hasBeenRead()) {
+        while (!buffer.isFullyRead()) {
             val byte = buffer.readByte()
             if (byte == CARRIAGE_RETURN) {
                 state = ChunkingState.CHUNK_SIZE_EOL
@@ -151,7 +151,7 @@ class ChunkedInputStream(
     }
 
     private fun parseTrailers() {
-        while (!buffer.hasBeenRead()) {
+        while (!buffer.isFullyRead()) {
             val byte = buffer.readByte()
             if (byte == CARRIAGE_RETURN) {
                 state = ChunkingState.TRAILERS_EOL
