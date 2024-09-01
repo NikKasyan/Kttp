@@ -74,9 +74,7 @@ class TransferEncoding private constructor(val value: String, val parameters: Ma
 
         other as TransferEncoding
 
-        if (value != other.value) return false
-
-        return true
+        return value == other.value
     }
 
     override fun hashCode(): Int {
