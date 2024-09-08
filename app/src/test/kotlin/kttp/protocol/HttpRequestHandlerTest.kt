@@ -12,6 +12,8 @@ import org.junit.jupiter.api.assertThrows
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.net.URI
+import java.util.zip.DeflaterOutputStream
+import java.util.zip.GZIPOutputStream
 import kotlin.test.assertEquals
 
 class HttpRequestHandlerTest {
@@ -244,6 +246,50 @@ class HttpRequestHandlerTest {
         assertThrows<ChunkExtensionTooLong> {
             request.body.readAllBytes()
         }
-
     }
+    @Test
+    fun compressionDeflate_shouldBeHandled() {
+        val wikiString = "Wikipedia in\r\n\r\nchunks."
+        val compressedBody = wikiString.toByteArray().let {boa ->
+            val outputStream = ByteArrayOutputStream()
+            DeflaterOutputStream(outputStream).use { it.write(boa) }
+            outputStream.toByteArray()
+        }
+        val remoteRequest = PostRequest.from( "http://localhost:8080",
+            HttpHeaders().withTransferEncoding(TransferEncoding.DEFLATE),
+            HttpBody.fromBytes(compressedBody))
+
+        val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
+
+        val request = HttpRequestHandler().handle(ioStream)
+
+        val body = request.body
+        val bytes = body.readAllBytes()
+        assertEquals(wikiString, bytes.toString(Charsets.US_ASCII))
+    }
+    @Test
+    fun compressionGzip_shouldBeHandled() {
+        val wikiString = "Wikipedia in\r\n\r\nchunks."
+
+        val compressed = gzipCompress(wikiString)
+        val remoteRequest = PostRequest.from( "http://localhost:8080",
+            HttpHeaders().withTransferEncoding(TransferEncoding.GZIP),
+            HttpBody.fromBytes(compressed))
+
+        val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
+
+        val request = HttpRequestHandler().handle(ioStream)
+
+        val body = request.body
+        val bytes = body.readAllBytes()
+        assertEquals(wikiString, bytes.toString(Charsets.US_ASCII))
+    }
+    fun gzipCompress(input: String): ByteArray {
+        val outputStream = ByteArrayOutputStream()
+        GZIPOutputStream(outputStream).use { gzipOutputStream ->
+            gzipOutputStream.write(input.toByteArray(Charsets.UTF_8))
+        }
+        return outputStream.toByteArray()
+    }
+
 }

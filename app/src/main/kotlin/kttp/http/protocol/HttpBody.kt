@@ -1,11 +1,15 @@
 package kttp.http.protocol
 
 import kttp.http.protocol.transfer.ChunkedInputStream
+import kttp.http.protocol.transfer.ChunkingInputStream
 import kttp.io.DefaultInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.Charset
+import java.util.zip.DeflaterInputStream
+import java.util.zip.GZIPInputStream
+import java.util.zip.InflaterInputStream
 
 
 class HttpBody(
@@ -24,17 +28,32 @@ class HttpBody(
             return HttpBody(ByteArrayInputStream(body), body.size.toLong())
         }
 
-        fun withTransferEncoding(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
+        fun withTransferEncodingRequest(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
             val transferEncodings = httpHeaders.transferEncodingAsList()
             if (transferEncodings.isEmpty())
                 return HttpBody(body, httpHeaders.contentLength)
-            return buildTransferPipeline(body, transferEncodings, httpHeaders)
+            return buildTransferPipelineForRequest(body, transferEncodings, httpHeaders)
+        }
+
+        fun withTransferEncodingResponse(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
+            val transferEncodings = httpHeaders.transferEncodingAsList()
+            if (transferEncodings.isEmpty())
+                return HttpBody(body, httpHeaders.contentLength)
+            return buildTransferPipelineForResponse(body, transferEncodings, httpHeaders)
         }
 
         fun empty(): HttpBody {
             return HttpBody()
         }
 
+    }
+
+    fun toEncodedRequestBody(httpHeaders: HttpHeaders): HttpBody {
+        return withTransferEncodingRequest(body, httpHeaders)
+    }
+
+    fun toEncodedResponseBody(httpHeaders: HttpHeaders): HttpBody {
+        return withTransferEncodingResponse(body, httpHeaders)
     }
 
     fun hasContentLength(): Boolean {
@@ -102,7 +121,7 @@ class HttpBody(
 
 }
 
-private fun buildTransferPipeline(
+private fun buildTransferPipelineForRequest(
     body: InputStream,
     transferEncodings: List<TransferEncoding>,
     httpHeaders: HttpHeaders
@@ -111,7 +130,26 @@ private fun buildTransferPipeline(
     for (transferEncoding in transferEncodings) {
         currentBody = when (transferEncoding) {
             TransferEncoding.CHUNKED -> ChunkedInputStream(currentBody, httpHeaders)
-            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding not implemented")
+            TransferEncoding.DEFLATE -> InflaterInputStream(currentBody)
+            TransferEncoding.GZIP -> GZIPInputStream(currentBody)
+            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Request not implemented")
+        }
+    }
+    return HttpBody(currentBody, httpHeaders.contentLength)
+}
+
+private fun buildTransferPipelineForResponse(
+    body: InputStream,
+    transferEncodings: List<TransferEncoding>,
+    httpHeaders: HttpHeaders
+): HttpBody {
+    var currentBody = body
+    for (transferEncoding in transferEncodings) {
+        currentBody = when (transferEncoding) {
+            TransferEncoding.CHUNKED -> ChunkingInputStream(currentBody, httpHeaders)
+            TransferEncoding.DEFLATE  -> DeflaterInputStream(currentBody)
+            TransferEncoding.GZIP -> GZIPInputStream(currentBody)
+            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Response not implemented")
         }
     }
     return HttpBody(currentBody, httpHeaders.contentLength)
