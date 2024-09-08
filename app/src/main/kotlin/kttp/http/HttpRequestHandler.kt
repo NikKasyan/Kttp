@@ -56,7 +56,9 @@ class HttpRequestHandler {
         // https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
         if(headers.hasContentLength() && headers.hasTransferEncoding())
             throw InvalidHeaderStructure("Cannot have both Content-Length and Transfer-Encoding")
-        if(headers.hasTransferEncoding() && headers.transferEncodingAsList().last() != TransferEncoding.CHUNKED)
+        if(headers.hasTransferEncoding()
+            && headers.transferEncodingAsList().contains(TransferEncoding.CHUNKED)
+            && headers.transferEncodingAsList().last() != TransferEncoding.CHUNKED)
             throw InvalidHeaderStructure("Transfer-Encoding must end with chunked if present")
         if(headers.hasContentLength() && headers.contentLengthLong() < 0)
             throw InvalidHeaderStructure("Content-Length must be a number")
@@ -88,7 +90,7 @@ class HttpRequestHandler {
     private fun readBody(io: IOStream, requestLine: RequestLine, headers: HttpHeaders): HttpBody {
 
         val body = if (requestLine.method.allowsBody())
-            if(headers.hasTransferEncoding()) HttpBody.withTransferEncoding(io, headers)
+            if(headers.hasTransferEncoding()) HttpBody.withTransferEncodingRequest(io, headers)
             else HttpBody(io, headers.contentLengthLong())
         else HttpBody.empty()
 

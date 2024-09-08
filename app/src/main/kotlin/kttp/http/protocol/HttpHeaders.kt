@@ -438,10 +438,11 @@ private fun checkTransferEncoding(transferEncoding: List<TransferEncoding>) {
     if (transferEncoding.contains(TransferEncoding.IDENTITY) && transferEncoding.size > 1)
         throw InvalidTransferEncoding("Identity must be the only Transfer Encoding if present")
     // May not contain multiple chunked encodings https://www.rfc-editor.org/rfc/rfc9112#section-6.1-4
-    if (transferEncoding.count { it == TransferEncoding.CHUNKED } > 1)
+    val chunkedCount = transferEncoding.count { it == TransferEncoding.CHUNKED }
+    if (chunkedCount > 1)
         throw InvalidTransferEncoding("May not contain multiple Chunked Transfer Encodings")
     // Chunked must be the last encoding https://www.rfc-editor.org/rfc/rfc9112#section-6.1-4
-    if (transferEncoding.indexOf(TransferEncoding.CHUNKED) != transferEncoding.size - 1)
+    if (chunkedCount == 1 && transferEncoding.indexOf(TransferEncoding.CHUNKED) != transferEncoding.size - 1)
         throw InvalidTransferEncoding("Chunked must be the last Transfer Encoding")
 }
 
