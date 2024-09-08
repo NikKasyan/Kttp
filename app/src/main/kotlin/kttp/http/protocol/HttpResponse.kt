@@ -56,8 +56,7 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
         if (body.hasContentLength() && !headers.hasContentLength())
             headers.withContentLength(body.contentLength!!)
         // Todo: handle Transfer-Encoding https://www.rfc-editor.org/rfc/rfc9112#name-transfer-encoding
-        val bodyString = body.readAllBytes().toString(Charsets.US_ASCII)
-        return "$statusLine\r\n$headers\r\n\r\n$bodyString"
+        return asStream().readAllBytes().toString(Charsets.US_ASCII)
     }
 
     fun asStream(): InputStream {
