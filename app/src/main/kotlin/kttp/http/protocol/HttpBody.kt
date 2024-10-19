@@ -39,7 +39,7 @@ class HttpBody(
             val transferEncodings = httpHeaders.transferEncodingAsList()
             if (transferEncodings.isEmpty())
                 return HttpBody(body, httpHeaders.contentLength)
-            return buildTransferPipelineForResponse(body, transferEncodings, httpHeaders)
+            return buildTransferEncodedPipelineForResponse(body, transferEncodings, httpHeaders)
         }
 
         fun empty(): HttpBody {
@@ -138,7 +138,7 @@ private fun buildTransferPipelineForRequest(
     return HttpBody(currentBody, httpHeaders.contentLength)
 }
 
-private fun buildTransferPipelineForResponse(
+private fun buildTransferEncodedPipelineForResponse(
     body: InputStream,
     transferEncodings: List<TransferEncoding>,
     httpHeaders: HttpHeaders

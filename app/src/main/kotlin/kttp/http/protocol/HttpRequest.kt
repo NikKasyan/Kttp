@@ -38,9 +38,9 @@ class HttpRequest(
         }
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
             val bodyArray = body.toByteArray()
-            val body = HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size.toLong())
+            val httpBody = HttpBody(ByteArrayInputStream(bodyArray), bodyArray.size.toLong())
 
-            return from(method, uri, httpHeaders, body)
+            return from(method, uri, httpHeaders, httpBody)
         }
 
         fun from(method: Method, uriString: String, httpHeaders: HttpHeaders = HttpHeaders(), inputStream: InputStream?): HttpRequest {
@@ -102,8 +102,8 @@ object PostRequest {
     fun from(uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
         return HttpRequest.from(Method.POST, uri, httpHeaders, body)
     }
-    fun from(uriString: String, httpHeaders: HttpHeaders = HttpHeaders(), inputStream: InputStream?): HttpRequest {
-        return HttpRequest.from(Method.POST, uriString, httpHeaders, inputStream)
+    fun from(uriString: String, httpHeaders: HttpHeaders = HttpHeaders(), bodyStream: InputStream?): HttpRequest {
+        return HttpRequest.from(Method.POST, uriString, httpHeaders, bodyStream)
     }
 }
 
