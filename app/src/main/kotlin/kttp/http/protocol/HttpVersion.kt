@@ -45,6 +45,12 @@ class HttpVersion {
         return true
     }
 
+    override fun hashCode(): Int {
+        var result = majorVersion
+        result = 31 * result + minorVersion
+        return result
+    }
+
 }
 
 class InvalidHttpVersion(msg: String) : InvalidHttpRequest(msg)
