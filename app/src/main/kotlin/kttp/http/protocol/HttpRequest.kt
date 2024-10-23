@@ -22,8 +22,11 @@ class HttpRequest(
 
         if (!httpHeaders.hasHost())
             throw MissingHostHeader()
+        if(!httpHeaders.hasTe(TransferEncoding.CHUNKED)) // https://www.rfc-editor.org/rfc/rfc9112#section-7.4-2
+            throw InvalidTransferEncoding("TE may not be set to chunked in a request as the server should always support it")
         if(body.hasContentLength() && !httpHeaders.hasContentLength())
             httpHeaders.withContentLength(body.contentLength!!)
+
 
         requestUri = combineToRequestUri(httpHeaders.host(), requestLine.uri)
     }
