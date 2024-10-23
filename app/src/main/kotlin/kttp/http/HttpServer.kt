@@ -20,7 +20,7 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
 
     private val executorService = Executors.newFixedThreadPool(maxConcurrentConnections)
 
-    private val openConnections = ArrayList<Socket>(maxConcurrentConnections)
+    private val openConnections = ArrayList<ClientConnection>(maxConcurrentConnections)
 
     private val numberOfConnections: AtomicInteger = AtomicInteger(0)
 
@@ -59,7 +59,6 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
     }
 
     private fun handleNewSocket(socket: Socket) {
-        openConnections.add(socket)
         executorService.submit {
             handleSocket(socket)
         }
@@ -69,7 +68,7 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
 
         numberOfConnections.incrementAndGet()
         val clientConnection = ClientConnection(socket)
-
+        openConnections.add(clientConnection)
         try {
             //Todo: Handle any errors that might occur during requests
             val httpRequest = HttpRequestHandler().handle(clientConnection.io)
@@ -86,12 +85,17 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         } catch (exception: Exception) {
             respondWithError(clientConnection, exception)
         } finally {
-            log.info { "Closed connection." }
-            clientConnection.close()
-            numberOfConnections.decrementAndGet()
-            openConnections.remove(socket)
+            closeConnection(clientConnection)
         }
 
+    }
+
+    private fun closeConnection(clientConnection: ClientConnection) {
+
+        log.info { "Closed connection." }
+        clientConnection.close()
+        numberOfConnections.decrementAndGet()
+        openConnections.remove(clientConnection)
     }
 
     private fun respondWithError(clientConnection: ClientConnection, exception: Exception) {
