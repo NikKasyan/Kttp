@@ -29,14 +29,14 @@ class HttpBody(
         }
 
         fun withTransferEncodingRequest(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
-            val transferEncodings = httpHeaders.transferEncodingAsList()
+            val transferEncodings = httpHeaders.transferEncodings()
             if (transferEncodings.isEmpty())
                 return HttpBody(body, httpHeaders.contentLength)
             return buildTransferPipelineForRequest(body, transferEncodings, httpHeaders)
         }
 
         fun withTransferEncodingResponse(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
-            val transferEncodings = httpHeaders.transferEncodingAsList()
+            val transferEncodings = httpHeaders.transferEncodings()
             if (transferEncodings.isEmpty())
                 return HttpBody(body, httpHeaders.contentLength)
             return buildTransferEncodedPipelineForResponse(body, transferEncodings, httpHeaders)

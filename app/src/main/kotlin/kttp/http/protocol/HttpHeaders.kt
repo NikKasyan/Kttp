@@ -315,7 +315,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun transferEncoding(): TransferEncoding {
-        return transferEncodingAsList().first()
+        return transferEncodings().first()
     }
 
     fun transferEncodingAsString(): String {
@@ -326,9 +326,46 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return transferEncodingAsString().split(", ").map { it.trim() }
     }
 
-    fun transferEncodingAsList(): List<TransferEncoding> {
+    fun transferEncodings(): List<TransferEncoding> {
         return transferEncodingAsStrings().map { TransferEncoding.byEncoding(it) }
     }
+
+    var te: TransferEncoding?
+        get() = if (hasTe()) te() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.TE)
+            else
+                withTe(value)
+        }
+
+    fun withTe(vararg te: TransferEncoding): HttpHeaders {
+        checkTransferEncoding(te.toList())
+        headers[CommonHeaders.TE] = te.joinToString { it.value }
+        return this
+    }
+
+    fun hasTe(): Boolean {
+        return headers.containsKey(CommonHeaders.TE)
+    }
+
+    fun te(): TransferEncoding {
+        return teEncodings().first()
+    }
+
+    fun teAsString(): String {
+        return headers[CommonHeaders.TE]!!
+    }
+
+    fun teAsStrings(): List<String> {
+        return teAsString().split(", ").map { it.trim() }
+    }
+
+    fun teEncodings(): List<TransferEncoding> {
+        return teAsStrings().map { TransferEncoding.byEncoding(it) }
+    }
+
+
 
     var date: Date?
         get() = if (hasDate()) date() else null
