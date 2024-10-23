@@ -8,7 +8,7 @@ import java.net.URI
 
 class HttpRequest(
     private val requestLine: RequestLine,
-    val httpHeaders: HttpHeaders = HttpHeaders(),
+    val headers: HttpHeaders = HttpHeaders(),
     val body: HttpBody,
 ) {
 
@@ -20,15 +20,15 @@ class HttpRequest(
 
     init {
 
-        if (!httpHeaders.hasHost())
+        if (!headers.hasHost())
             throw MissingHostHeader()
-        if(!httpHeaders.hasTe(TransferEncoding.CHUNKED)) // https://www.rfc-editor.org/rfc/rfc9112#section-7.4-2
+        if(!headers.hasTe(TransferEncoding.CHUNKED)) // https://www.rfc-editor.org/rfc/rfc9112#section-7.4-2
             throw InvalidTransferEncoding("TE may not be set to chunked in a request as the server should always support it")
-        if(body.hasContentLength() && !httpHeaders.hasContentLength())
-            httpHeaders.withContentLength(body.contentLength!!)
+        if(body.hasContentLength() && !headers.hasContentLength())
+            headers.withContentLength(body.contentLength!!)
 
 
-        requestUri = combineToRequestUri(httpHeaders.host(), requestLine.uri)
+        requestUri = combineToRequestUri(headers.host(), requestLine.uri)
     }
     companion object {
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: HttpBody): HttpRequest {
@@ -72,13 +72,13 @@ class HttpRequest(
     }
 
     override fun toString(): String {
-        return "$requestLine$httpHeaders\r\n\r\n$body"
+        return "$requestLine$headers\r\n\r\n$body"
     }
 
     fun asStream(): InputStream {
         return CombinedInputStream(
             requestLine.toString().byteInputStream(),
-            "$httpHeaders\r\n\r\n".byteInputStream(),
+            "$headers\r\n\r\n".byteInputStream(),
             body
         )
     }

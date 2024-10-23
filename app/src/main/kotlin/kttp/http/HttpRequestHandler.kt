@@ -13,9 +13,8 @@ private val log: Logger = Logger(HttpRequestHandler::class.java)
 class HttpRequestHandler {
 
 
-    //Todo: Should probably loop here because https://www.rfc-editor.org/rfc/rfc7230#section-6.3
-    // suggests that the connection may send more than one request
-    fun handle(io: IOStream): HttpRequest {
+
+    fun handleRequest(io: IOStream): HttpRequest {
 
         val requestLine = readRequestLine(io)
 

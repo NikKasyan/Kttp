@@ -30,7 +30,7 @@ class HttpRequestHandlerTest {
         val outputStream = ByteArrayOutputStream()
         val ioStream = IOStream(stream, outputStream)
 
-        val request = HttpRequestHandler().handle(ioStream)
+        val request = HttpRequestHandler().handleRequest(ioStream)
 
         println(request)
 
@@ -54,12 +54,12 @@ class HttpRequestHandlerTest {
         val outputStream = OutputStream.nullOutputStream()
         val ioStream = IOStream(stream, outputStream)
 
-        val parsedRequest = HttpRequestHandler().handle(ioStream)
+        val parsedRequest = HttpRequestHandler().handleRequest(ioStream)
 
         assertEquals(requestLine.method, parsedRequest.method)
         assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.requestUri)
         assertEquals(requestLine.httpVersion, parsedRequest.httpVersion)
-        assertEquals(headers, parsedRequest.httpHeaders)
+        assertEquals(headers, parsedRequest.headers)
 
     }
 
@@ -80,12 +80,12 @@ class HttpRequestHandlerTest {
         val outputStream = OutputStream.nullOutputStream()
         val ioStream = IOStream(stream, outputStream)
 
-        val parsedRequest = HttpRequestHandler().handle(ioStream)
+        val parsedRequest = HttpRequestHandler().handleRequest(ioStream)
 
         assertEquals(requestLine.method, parsedRequest.method)
         assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.requestUri)
         assertEquals(requestLine.httpVersion, parsedRequest.httpVersion)
-        assertEquals(headers, parsedRequest.httpHeaders)
+        assertEquals(headers, parsedRequest.headers)
 
     }
 
@@ -100,7 +100,7 @@ class HttpRequestHandlerTest {
         val ioStream = IOStream(requestWithNoHost, OutputStream.nullOutputStream())
 
         assertThrows<MissingHostHeader> {
-            HttpRequestHandler().handle(ioStream)
+            HttpRequestHandler().handleRequest(ioStream)
         }
 
     }
@@ -118,7 +118,7 @@ class HttpRequestHandlerTest {
         val ioStream = IOStream(requestWithNoHost, OutputStream.nullOutputStream())
 
         assertThrows<TooManyHostHeaders> {
-            HttpRequestHandler().handle(ioStream)
+            HttpRequestHandler().handleRequest(ioStream)
         }
 
     }
@@ -136,7 +136,7 @@ class HttpRequestHandlerTest {
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
         assertThrows<InvalidContentLength> {
-            HttpRequestHandler().handle(ioStream)
+            HttpRequestHandler().handleRequest(ioStream)
         }
     }
 
@@ -153,7 +153,7 @@ class HttpRequestHandlerTest {
         val ioStream = IOStream(requestWithInvalidTransferEncoding, OutputStream.nullOutputStream())
 
         assertThrows<UnknownTransferEncoding> {
-            HttpRequestHandler().handle(ioStream)
+            HttpRequestHandler().handleRequest(ioStream)
         }
     }
 
@@ -170,9 +170,9 @@ class HttpRequestHandlerTest {
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
 
-        val request = HttpRequestHandler().handle(ioStream)
+        val request = HttpRequestHandler().handleRequest(ioStream)
 
-        assertEquals(0, request.httpHeaders.contentLength)
+        assertEquals(0, request.headers.contentLength)
     }
 
     @Test
@@ -188,7 +188,7 @@ class HttpRequestHandlerTest {
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
         assertThrows<InvalidContentLength> {
-            HttpRequestHandler().handle(ioStream)
+            HttpRequestHandler().handleRequest(ioStream)
         }
     }
     @Test
@@ -204,7 +204,7 @@ class HttpRequestHandlerTest {
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
         assertThrows<InvalidContentLength> {
-            HttpRequestHandler().handle(ioStream)
+            HttpRequestHandler().handleRequest(ioStream)
         }
     }
 
@@ -218,7 +218,7 @@ class HttpRequestHandlerTest {
 
         val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
 
-        val request = HttpRequestHandler().handle(ioStream)
+        val request = HttpRequestHandler().handleRequest(ioStream)
 
         val body = request.body
         val bytes = body.readAllBytes()
@@ -242,7 +242,7 @@ class HttpRequestHandlerTest {
                 stream)
                 .asStream(),
             OutputStream.nullOutputStream())
-        val request = HttpRequestHandler().handle(ioStream)
+        val request = HttpRequestHandler().handleRequest(ioStream)
         assertThrows<ChunkExtensionTooLong> {
             request.body.readAllBytes()
         }
@@ -261,7 +261,7 @@ class HttpRequestHandlerTest {
 
         val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
 
-        val request = HttpRequestHandler().handle(ioStream)
+        val request = HttpRequestHandler().handleRequest(ioStream)
 
         val body = request.body
         val bytes = body.readAllBytes()
@@ -278,7 +278,7 @@ class HttpRequestHandlerTest {
 
         val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
 
-        val request = HttpRequestHandler().handle(ioStream)
+        val request = HttpRequestHandler().handleRequest(ioStream)
 
         val body = request.body
         val bytes = body.readAllBytes()
