@@ -15,3 +15,7 @@ Trying to implement all RFC standards for HTTP/1.1
 
 # Current Progress
 https://www.rfc-editor.org/rfc/rfc9112#section-6.3-6
+
+# Not planned to be implemented soon
+
+compress or x-compress (Currently not feeling like implementing LZW with correct encoding) 
