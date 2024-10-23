@@ -1,4 +1,4 @@
-package kttp.net
+package kttp.io
 
 import kttp.io.DefaultInputStream
 import org.junit.jupiter.api.Assertions.assertEquals

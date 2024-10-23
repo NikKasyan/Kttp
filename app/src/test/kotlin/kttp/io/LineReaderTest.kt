@@ -1,4 +1,4 @@
-package kttp.net
+package kttp.io
 
 import kttp.io.LineReader
 import org.junit.jupiter.api.Test

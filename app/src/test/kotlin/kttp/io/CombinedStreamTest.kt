@@ -1,4 +1,4 @@
-package kttp.net
+package kttp.io
 
 import kttp.io.CombinedInputStream
 import kttp.io.combineWith
