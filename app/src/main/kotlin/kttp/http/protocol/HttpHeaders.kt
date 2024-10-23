@@ -16,12 +16,33 @@ object CommonHeaders {
     const val TE = "TE"
     const val DATE = "Date"
     const val ACCEPT = "Accept"
+    const val CONTENT_ENCODING = "Content-Encoding"
     //Todo: Add missing Common Headers
     // Trailer: https://www.rfc-editor.org/rfc/rfc9110#name-trailer
 
 }
 
-class TransferEncoding private constructor(val value: String, val parameters: Map<String, String> = emptyMap()) {
+//Todo: Might need to refactor this as TransferEncoding, ContentEncoding and TE have similar structure
+// But allow different values
+open class Encoding constructor(val value: String, val parameters: Map<String, String> = emptyMap()) {
+    override fun toString(): String {
+        return value + if (parameters.isEmpty()) "" else "; " + parameters.map { "${it.key}=${it.value}" }.joinToString("; ")
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as TransferEncoding
+
+        return value == other.value
+    }
+
+    override fun hashCode(): Int {
+        return value.hashCode()
+    }
+}
+class TransferEncoding private constructor(value: String, parameters: Map<String, String> = emptyMap()): Encoding(value, parameters) {
 
     companion object {
         fun byEncoding(value: String): TransferEncoding {
@@ -63,24 +84,10 @@ class TransferEncoding private constructor(val value: String, val parameters: Ma
         val DEFLATE = TransferEncoding("deflate")
 
     }
-
-    override fun toString(): String {
-        return value
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || this::class != other::class) return false
-
-        other as TransferEncoding
-
-        return value == other.value
-    }
-
-    override fun hashCode(): Int {
-        return value.hashCode()
-    }
 }
+
+
+
 
 object DateFormats {
     private const val IMF_FIX_DATE = "EEE, dd MMM yyyy HH:mm:ss z"
@@ -306,6 +313,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
 
     fun withTransferEncoding(vararg transferEncoding: TransferEncoding): HttpHeaders {
         checkTransferEncoding(transferEncoding.toList())
+        checkTransferEncodingHasNoParameter(transferEncoding.toList())
         headers[CommonHeaders.TRANSFER_ENCODING] = transferEncoding.joinToString { it.value }
         return this
     }
@@ -341,12 +349,17 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
 
     fun withTe(vararg te: TransferEncoding): HttpHeaders {
         checkTransferEncoding(te.toList())
+        checkTransferEncodingHasOnlyAllowedParameter(te.toList(), listOf("q"))
         headers[CommonHeaders.TE] = te.joinToString { it.value }
         return this
     }
 
     fun hasTe(): Boolean {
         return headers.containsKey(CommonHeaders.TE)
+    }
+
+    fun hasTe(vararg te: TransferEncoding): Boolean {
+        return hasTe() && te.all { headers[CommonHeaders.TE]!!.contains(it.value) }
     }
 
     fun te(): TransferEncoding {
@@ -364,7 +377,6 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     fun teEncodings(): List<TransferEncoding> {
         return teAsStrings().map { TransferEncoding.byEncoding(it) }
     }
-
 
 
     var date: Date?
@@ -481,6 +493,15 @@ private fun checkTransferEncoding(transferEncoding: List<TransferEncoding>) {
     // Chunked must be the last encoding https://www.rfc-editor.org/rfc/rfc9112#section-6.1-4
     if (chunkedCount == 1 && transferEncoding.indexOf(TransferEncoding.CHUNKED) != transferEncoding.size - 1)
         throw InvalidTransferEncoding("Chunked must be the last Transfer Encoding")
+}
+private fun checkTransferEncodingHasNoParameter(transferEncodings: List<TransferEncoding>) {
+    if(transferEncodings.any { it.parameters.isNotEmpty() })
+        throw InvalidTransferEncoding("Transfer Encoding must not have parameters")
+}
+
+private fun checkTransferEncodingHasOnlyAllowedParameter(transferEncodings: List<TransferEncoding>, allowedParameters: List<String>) {
+    if(transferEncodings.any { it.parameters.keys.any { key -> !allowedParameters.contains(key) } })
+        throw InvalidTransferEncoding("Transfer Encoding must only have allowed parameters")
 }
 
 class HttpHeader {
