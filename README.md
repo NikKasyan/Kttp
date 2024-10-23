@@ -14,7 +14,8 @@ Trying to implement all RFC standards for HTTP/1.1
 3. "HTTP/1.1" https://www.rfc-editor.org/rfc/rfc9112
 
 # Current Progress
-https://www.rfc-editor.org/rfc/rfc9112#section-6.3-6
+https://www.rfc-editor.org/rfc/rfc9112#section-9.3.1
+Add testing for persistent connections
 
 # Not planned to be implemented soon
 

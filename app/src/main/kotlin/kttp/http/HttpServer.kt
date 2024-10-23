@@ -70,18 +70,14 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         val clientConnection = ClientConnection(socket)
         openConnections.add(clientConnection)
         try {
-            //Todo: Handle any errors that might occur during requests
-            val httpRequest = HttpRequestHandler().handle(clientConnection.io)
+            var connectionOpen = true;
+            while (connectionOpen) {
+                //Todo: Handle any errors that might occur during requests
+                val httpRequest = HttpRequestHandler().handleRequest(clientConnection.io)
+                connectionOpen = httpRequest.headers.hasConnection(Connection.CLOSE)
+                respond(httpRequest, clientConnection)
 
-
-            respond(httpRequest, clientConnection)
-
-
-            //Todo: If major version is not supported by this server
-            // Answer with A server can send a 505
-            //   (HTTP Version Not Supported) response if it wishes, for any reason,
-            //   to refuse service of the client's major protocol version.
-            // https://www.rfc-editor.org/rfc/rfc7230#page-14
+            }
         } catch (exception: Exception) {
             respondWithError(clientConnection, exception)
         } finally {
@@ -100,18 +96,30 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
 
     private fun respondWithError(clientConnection: ClientConnection, exception: Exception) {
         val httpResponse = httpResponseFromException(exception).also {
-            if(it.statusLine.status == HttpStatus.INTERNAL_SERVER_ERROR)
+            if (it.statusLine.status == HttpStatus.INTERNAL_SERVER_ERROR)
                 log.error(exception) { "Internal Server Error" }
             else
-                log.warn{ "Client Error: ${exception.message}" }
+                log.warn { "Client Error: ${exception.message}" }
         }
         respond(httpResponse, clientConnection)
     }
 
     private fun httpResponseFromException(exception: Exception) = when (exception) {
-        is UnknownTransferEncoding -> HttpResponse.fromStatus(HttpStatus.NOT_IMPLEMENTED, body = exception.message ?: "No message")
-        is UnknownHttpMethod -> HttpResponse.fromStatus(HttpStatus.METHOD_NOT_ALLOWED, body = exception.message ?: "No message")
-        is UriTooLong -> HttpResponse.fromStatus(HttpStatus.REQUEST_URI_TOO_LARGE, body = exception.message ?: "No message")
+        is UnknownTransferEncoding -> HttpResponse.fromStatus(
+            HttpStatus.NOT_IMPLEMENTED,
+            body = exception.message ?: "No message"
+        )
+
+        is UnknownHttpMethod -> HttpResponse.fromStatus(
+            HttpStatus.METHOD_NOT_ALLOWED,
+            body = exception.message ?: "No message"
+        )
+
+        is UriTooLong -> HttpResponse.fromStatus(
+            HttpStatus.REQUEST_URI_TOO_LARGE,
+            body = exception.message ?: "No message"
+        )
+
         is HeaderNameEndsWithWhiteSpace,
         is InvalidHttpRequestLine,
         is HeaderStartsWithWhiteSpace,
@@ -119,12 +127,20 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         is MissingHostHeader,
         is TooManyHostHeaders ->
             HttpResponse.badRequest(body = exception.message ?: "No message")
+
         else ->
             HttpResponse.internalError(body = exception.message ?: "No message")
     }
 
     private fun respond(httpRequest: HttpRequest, clientConnection: ClientConnection) {
-        val status = StatusLine(HttpVersion(1, 1), HttpStatus.OK)
+
+
+        //Todo: If major version is not supported by this server
+        // Answer with A server can send a 505
+        //   (HTTP Version Not Supported) response if it wishes, for any reason,
+        //   to refuse service of the client's major protocol version.
+        // https://www.rfc-editor.org/rfc/rfc7230#page-14
+        val status = StatusLine(HttpVersion.DEFAULT_VERSION, HttpStatus.OK)
         val httpResponse = HttpResponse(status, HttpHeaders(), httpRequest.body)
         respond(httpResponse, clientConnection)
     }

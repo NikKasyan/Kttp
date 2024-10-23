@@ -17,6 +17,7 @@ object CommonHeaders {
     const val DATE = "Date"
     const val ACCEPT = "Accept"
     const val CONTENT_ENCODING = "Content-Encoding"
+    const val CONNECTION = "Connection"
     //Todo: Add missing Common Headers
     // Trailer: https://www.rfc-editor.org/rfc/rfc9110#name-trailer
 
@@ -84,6 +85,12 @@ class TransferEncoding private constructor(value: String, parameters: Map<String
         val DEFLATE = TransferEncoding("deflate")
 
     }
+}
+
+enum class Connection(val value: String) {
+    CLOSE("close"),
+    KEEP_ALIVE("keep-alive"),
+    UPGRADE("upgrade")
 }
 
 
@@ -452,6 +459,43 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     fun acceptAsList(): List<String> {
         return accept().split(",").map { it.trim() }
     }
+
+    var connection: Connection?
+        get() = if (hasConnection()) connection() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.CONNECTION)
+            else
+                withConnection(value)
+        }
+
+    fun withConnection(connection: Connection): HttpHeaders {
+        headers[CommonHeaders.CONNECTION] = connection.value
+        return this
+    }
+
+    fun hasConnection(connection: Connection): Boolean {
+        return headers[CommonHeaders.CONNECTION] == connection.value
+    }
+
+    fun withConnection(connection: String): HttpHeaders {
+        headers[CommonHeaders.CONNECTION] = connection
+        return this
+    }
+
+    fun hasConnection(): Boolean {
+        return headers.containsKey(CommonHeaders.CONNECTION)
+    }
+
+    fun connection(): Connection {
+        return Connection.entries.first { it.value == headers[CommonHeaders.CONNECTION] }
+    }
+
+    fun connectionAsString(): String {
+        return headers[CommonHeaders.CONNECTION]!!
+    }
+
+
 
 
     fun toList(): List<HttpHeader> {
