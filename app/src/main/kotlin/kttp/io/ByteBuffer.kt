@@ -42,6 +42,7 @@ class ByteBuffer(private val buffer: ByteArray,
         src.readPosition += bytesToCopy
         return bytesToCopy
     }
+
     fun moveFrom(src: ByteArray, offset: Int = 0,
                  length: Int = src.size,
                  destOffset: Int = this.length,

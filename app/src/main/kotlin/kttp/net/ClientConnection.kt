@@ -34,4 +34,7 @@ class ClientConnection(private val socket: Socket, options: ConnectionOptions = 
 }
 
 
-data class ConnectionOptions(val timeout: Duration = Duration.ofSeconds(30), val charset: Charset = Charsets.UTF_8, val maxLineLengthInBytes: Int = 8192)
+data class ConnectionOptions(
+    val timeout: Duration = Duration.ofSeconds(30),
+    val charset: Charset = Charsets.UTF_8,
+    val maxLineLengthInBytes: Int = 8192)
