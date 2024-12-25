@@ -22,7 +22,7 @@ class HttpRequest(
 
         if (!headers.hasHost())
             throw MissingHostHeader()
-        if(!headers.hasTe(TransferEncoding.CHUNKED)) // https://www.rfc-editor.org/rfc/rfc9112#section-7.4-2
+        if(headers.hasTe(TransferEncoding.CHUNKED)) // https://www.rfc-editor.org/rfc/rfc9112#section-7.4-2
             throw InvalidTransferEncoding("TE may not be set to chunked in a request as the server should always support it")
         if(body.hasContentLength() && !headers.hasContentLength())
             headers.withContentLength(body.contentLength!!)
