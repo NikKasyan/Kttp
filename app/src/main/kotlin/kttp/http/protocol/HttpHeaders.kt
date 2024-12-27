@@ -119,11 +119,7 @@ fun checkHeaderNotContainsBareCR(header: HttpHeader) {
 //Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
 class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeader> {
 
-    private val headers: MutableMap<String, String>
-
-    init {
-        this.headers = headers.toMutableMap()
-    }
+    private val headers: MutableMap<String, String> = headers.toMutableMap()
 
     constructor(vararg headers: Pair<String, String>) : this() {
         add(*headers)
