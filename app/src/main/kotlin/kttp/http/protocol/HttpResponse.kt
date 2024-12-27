@@ -5,7 +5,7 @@ import kttp.io.IOStream
 import java.io.InputStream
 
 
-class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val body: HttpBody) {
+class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val body: HttpBody): AutoCloseable {
 
     companion object {
         fun ok(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
@@ -18,6 +18,10 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
 
         fun internalError(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
             return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, headers, body)
+        }
+
+        fun notFound(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
+            return fromStatus(HttpStatus.NOT_FOUND, headers, body)
         }
 
         fun fromStatus(
@@ -79,6 +83,10 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
             ioStream.writeBytes(buffer)
         }
 
+    }
+
+    override fun close() {
+        body.close()
     }
 
 }
