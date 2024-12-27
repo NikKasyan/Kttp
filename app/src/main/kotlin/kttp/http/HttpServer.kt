@@ -3,24 +3,33 @@ package kttp.http
 import kttp.http.protocol.*
 import kttp.log.Logger
 import kttp.net.ClientConnection
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.Comparator
 
 
-
-typealias Handler = (HttpExchange) -> Unit
+typealias Handler = HttpExchange.() -> Unit
 
 //Todo: Find a better name for this class
-data class HttpReqHandler(val path:String, val methods: EnumSet<Method>, val handler: Handler) {
-    constructor(path: String, method: Method, handler: Handler): this(path, EnumSet.of(method), handler)
-    constructor(path: String, methods: List<Method>, handler: Handler): this(path, EnumSet.noneOf(Method::class.java).also { it.addAll(methods) }, handler)
+data class HttpReqHandler(val path: String, val methods: EnumSet<Method>, val handler: Handler) {
+    constructor(path: String, method: Method, handler: Handler) : this(path, EnumSet.of(method), handler)
+    constructor(path: String, methods: List<Method>, handler: Handler) : this(
+        path,
+        EnumSet.noneOf(Method::class.java).also { it.addAll(methods) },
+        handler
+    )
 }
 
-class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20) {
+class HttpServer(
+    private val port: Int = 80,
+    private val hostName: String = "127.0.0.1",
+    maxConcurrentConnections: Int = 20
+) {
 
 
     private lateinit var serverSocket: ServerSocket
@@ -52,7 +61,7 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
     }
 
     fun onPost(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.POST), handler))
+        addHandler(HttpReqHandler(path, EnumSet.of(Method.POST), handler)).apply { }
     }
 
     fun onPut(path: String, handler: Handler) {
@@ -99,12 +108,12 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         addHandler(HttpReqHandler(path, EnumSet.allOf(Method::class.java), handler))
     }
 
-    private fun addHandler(httpReqHandler: HttpReqHandler) {
-        handlerRegistry.addHandler(httpReqHandler)
-    }
-
     fun removeHandler(path: String) {
         handlerRegistry.removeHandler(path)
+    }
+
+    fun clearHandlers() {
+        handlerRegistry.clear()
     }
 
     fun start() {
@@ -112,8 +121,9 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         if (isRunning)
             throw IllegalStateException("Server can only be started once")
         isRunning = true
-        log.info { "Starting server on port $port" }
-        this.serverSocket = ServerSocket(port)
+        log.info { "Starting server on $hostName:$port" }
+        this.serverSocket = ServerSocket()
+        serverSocket.bind(InetSocketAddress(hostName, port))
         acceptNewSockets()
 
     }
@@ -173,8 +183,8 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
                 log.error(exception) { "Internal Server Error" }
             else
                 log.warn { "Client Error: ${exception.message}" }
+            createDefaultResponseHeaders(it.headers)
         }
-        addMandatoryHeadersIfMissing(httpResponse)
         httpResponse.writeTo(clientConnection.io)
     }
 
@@ -214,14 +224,23 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         //   (HTTP Version Not Supported) response if it wishes, for any reason,
         //   to refuse service of the client's major protocol version.
         // https://www.rfc-editor.org/rfc/rfc7230#page-14
-        val status = StatusLine(HttpVersion.DEFAULT_VERSION, HttpStatus.OK)
-        val httpResponse = HttpResponse(status, HttpHeaders(), httpRequest.body)
+        val httpResponse = HttpResponse.ok(createDefaultResponseHeaders())
         val httpExchange = HttpExchange(httpRequest, httpResponse, clientConnection.io)
+
         httpExchange.use {
-            val handler = handlerRegistry.getHandlerForRequest(httpRequest)
-            handler.handler(httpExchange)
+            try {
+                val handler = handlerRegistry.getHandlerForRequest(httpRequest)
+                handler.handler(httpExchange)
+            } catch (e: Exception) {
+                respondWithError(clientConnection, e)
+            }
         }
     }
+
+    private fun addHandler(httpReqHandler: HttpReqHandler) {
+        handlerRegistry.addHandler(httpReqHandler)
+    }
+
 
     fun stop() {
         isRunning = false
@@ -233,12 +252,24 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
 
     }
 
+    private fun createDefaultResponseHeaders(headers: HttpHeaders = HttpHeaders()): HttpHeaders {
+        return headers
+            .withDate()
+            .withServer("Kttp")
+    }
+
+    fun getBaseUri(): String {
+        return "http://${getHost()}"
+    }
+
+    fun getHost(): String {
+        if (port == 80 || port == 443)
+            return hostName
+        return "$hostName:$port"
+    }
+
 }
 
-private val NOT_FOUND_HANDLER = HttpReqHandler("", EnumSet.allOf(Method::class.java)) {
-    val notFound = "Not Found ${it.request.uri.path}"
-    it.respond(HttpResponse.notFound(body = notFound))
-}
 class HttpContextRegistry(private val httpRequestHandlers: MutableList<HttpReqHandler> = mutableListOf()) {
 
     fun addHandler(httpReqHandler: HttpReqHandler) {
@@ -252,39 +283,60 @@ class HttpContextRegistry(private val httpRequestHandlers: MutableList<HttpReqHa
     fun getHandlerForRequest(httpRequest: HttpRequest): HttpReqHandler {
         return httpRequestHandlers.find {
             it.path == httpRequest.uri.path && it.methods.contains(httpRequest.method)
-        } ?: getHandlerForRequestByPath(httpRequest)
-            ?: getHandlerForFuzzyPath(httpRequest)
-            ?: NOT_FOUND_HANDLER
+        } ?: getHandlerByPath(httpRequest.uri.path)
+        ?: NOT_FOUND_HANDLER()
 
     }
 
-    private fun getHandlerForRequestByPath(httpRequest: HttpRequest): HttpReqHandler? {
+    fun getHandlerByPath(path: String): HttpReqHandler? {
         return httpRequestHandlers.find {
-            it.path == httpRequest.uri.path
-        }
+            it.path == path
+        } ?: getHandlerForFuzzyPath(path)
     }
 
-    private fun getHandlerForFuzzyPath(httpRequest: HttpRequest): HttpReqHandler? {
+    private fun getHandlerForFuzzyPath(path: String): HttpReqHandler? {
+        val list = mutableListOf<Pair<HttpReqHandler, Int>>()
         for (handler in httpRequestHandlers) {
-            if(handler.path.contains("*")) {
-                val path = handler.path.split("/")
-                val requestPath = httpRequest.uri.path.split("/")
-                if(path.size == requestPath.size) {
-                    var match = true
-                    for (i in path.indices) {
-                        if(path[i] != "*" && path[i] != requestPath[i]) {
-                            match = false
-                            break
-                        }
+            if (handler.path.contains("*")) {
+                val handlerPath = handler.path.split("/").filter { it.isNotEmpty() }
+                val requestPath = path.split("/").filter { it.isNotEmpty() }
+                var pathIndex = 0
+                var requestIndex = 0
+                while (pathIndex < handlerPath.size && requestIndex < requestPath.size) {
+                    if (handlerPath[pathIndex] != requestPath[requestIndex] && !handlerPath[pathIndex].contains("*"))
+                        break
+                    if (handlerPath[pathIndex] == "**") {
+                        list.add(handler to requestIndex)
+                        break
                     }
-                    if(match)
-                        return handler
+                    pathIndex++
+                    requestIndex++
                 }
+                if(requestPath.size + 1 == handlerPath.size && handlerPath.last().contains("*"))
+                    list.add(handler to requestIndex)
+                else if (pathIndex == handlerPath.size && requestIndex == requestPath.size)
+                    list.add(handler to requestIndex)
+
             }
         }
-        return httpRequestHandlers.find {
-            it.path.contains("{") && it.path.contains("}")
+        list.sortWith { o1, o2 ->
+            val first = o1.second.compareTo(o2.second)
+
+            if (first == 0)
+                if (o1.first.path.contains("**") && !o2.first.path.contains("**"))
+                    -1
+                else if (!o1.first.path.contains("**") && o2.first.path.contains("**"))
+                    1
+                else
+                    -o1.first.path.length.compareTo(o2.first.path.length)
+            else
+                -first
         }
+        return list.firstOrNull()?.first
+    }
+
+    fun clear() {
+        httpRequestHandlers.clear()
     }
 
 }
