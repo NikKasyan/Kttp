@@ -14,7 +14,7 @@ class HttpRequest(
 
     val httpVersion
         get() = requestLine.httpVersion
-    val requestUri: URI
+    val uri: URI
     val method
         get() = requestLine.method
 
@@ -28,7 +28,7 @@ class HttpRequest(
             headers.withContentLength(body.contentLength!!)
 
 
-        requestUri = combineToRequestUri(headers.host(), requestLine.uri)
+        uri = combineToRequestUri(headers.host(), requestLine.uri)
     }
     companion object {
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: HttpBody): HttpRequest {
