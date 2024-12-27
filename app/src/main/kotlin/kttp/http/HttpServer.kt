@@ -91,6 +91,10 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         addHandler(HttpReqHandler(path, methods, handler))
     }
 
+    fun on(methods: EnumSet<Method>, path: String, handler: Handler) {
+        addHandler(HttpReqHandler(path, methods, handler))
+    }
+
     fun on(path: String, handler: Handler) {
         addHandler(HttpReqHandler(path, EnumSet.allOf(Method::class.java), handler))
     }
