@@ -13,8 +13,6 @@ private val log: Logger = Logger(HttpRequestHandler::class.java)
 
 class HttpRequestHandler {
 
-
-
     fun handleRequest(io: IOStream): HttpRequest {
 
         val requestLine = readRequestLine(io)
