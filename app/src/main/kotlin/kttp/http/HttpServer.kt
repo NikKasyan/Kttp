@@ -103,6 +103,10 @@ class HttpServer(private val port: Int = 80, maxConcurrentConnections: Int = 20)
         handlerRegistry.addHandler(httpReqHandler)
     }
 
+    fun removeHandler(path: String) {
+        handlerRegistry.removeHandler(path)
+    }
+
     fun start() {
 
         if (isRunning)
@@ -239,6 +243,10 @@ class HttpContextRegistry(private val httpRequestHandlers: MutableList<HttpReqHa
 
     fun addHandler(httpReqHandler: HttpReqHandler) {
         httpRequestHandlers.add(httpReqHandler)
+    }
+
+    fun removeHandler(path: String) {
+        httpRequestHandlers.removeIf { it.path == path }
     }
 
     fun getHandlerForRequest(httpRequest: HttpRequest): HttpReqHandler {
