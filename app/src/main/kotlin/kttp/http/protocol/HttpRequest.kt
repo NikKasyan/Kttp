@@ -82,6 +82,10 @@ class HttpRequest(
             body
         )
     }
+
+    fun getParameters(): Parameters {
+        return Parameters.fromQuery(uri.query)
+    }
 }
 
 fun hasBareCR(string: String): Boolean {
