@@ -5,22 +5,22 @@ import kttp.io.IOStream
 import java.io.InputStream
 
 
-class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val body: HttpBody): AutoCloseable {
+class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val body: HttpBody = HttpBody.empty()): AutoCloseable {
 
     companion object {
-        fun ok(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
+        fun ok(headers: HttpHeaders = HttpHeaders(), body: String): HttpResponse {
             return fromStatus(HttpStatus.OK, headers, body)
         }
 
-        fun badRequest(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
+        fun badRequest(headers: HttpHeaders = HttpHeaders(), body: String): HttpResponse {
             return fromStatus(HttpStatus.BAD_REQUEST, headers, body)
         }
 
-        fun internalError(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
+        fun internalError(headers: HttpHeaders = HttpHeaders(), body: String): HttpResponse {
             return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, headers, body)
         }
 
-        fun notFound(headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
+        fun notFound(headers: HttpHeaders = HttpHeaders(), body: String): HttpResponse {
             return fromStatus(HttpStatus.NOT_FOUND, headers, body)
         }
 
@@ -30,7 +30,7 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
             body: HttpBody = HttpBody()
         ): HttpResponse {
             val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
-            if (!headers.hasContentLength())
+            if (!headers.hasContentLength() && body.hasContentLength())
                 headers.withContentLength(body.contentLength!!)
             return HttpResponse(statusLine, headers, body)
         }
@@ -42,15 +42,15 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
             return HttpResponse(statusLine, headers, HttpBody.fromString(body))
         }
 
-        fun ok(headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
+        fun ok(headers: HttpHeaders = HttpHeaders(), body: HttpBody = HttpBody.empty()): HttpResponse {
             return fromStatus(HttpStatus.OK, headers, body)
         }
 
-        fun badRequest(headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
+        fun badRequest(headers: HttpHeaders = HttpHeaders(), body: HttpBody = HttpBody.empty()): HttpResponse {
             return fromStatus(HttpStatus.BAD_REQUEST, headers, body)
         }
 
-        fun internalError(headers: HttpHeaders, body: HttpBody = HttpBody()): HttpResponse {
+        fun internalError(headers: HttpHeaders = HttpHeaders(), body: HttpBody = HttpBody.empty()): HttpResponse {
             return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, headers, body)
         }
 
