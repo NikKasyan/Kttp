@@ -2,6 +2,14 @@ package kttp.http.protocol
 
 class StatusLine {
 
+    companion object {
+        fun ok(version: HttpVersion = HttpVersion.DEFAULT_VERSION) = StatusLine(version, HttpStatus.OK)
+        fun badRequest(version: HttpVersion= HttpVersion.DEFAULT_VERSION) = StatusLine(version, HttpStatus.BAD_REQUEST)
+        fun internalError(version: HttpVersion= HttpVersion.DEFAULT_VERSION) = StatusLine(version, HttpStatus.INTERNAL_SERVER_ERROR)
+        fun notFound(version: HttpVersion= HttpVersion.DEFAULT_VERSION) = StatusLine(version, HttpStatus.NOT_FOUND)
+
+    }
+
     val httpVersion: HttpVersion
     val status: HttpStatus
     val message: String
