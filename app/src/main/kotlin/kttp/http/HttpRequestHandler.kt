@@ -1,6 +1,7 @@
 package kttp.http
 
 import kttp.http.protocol.*
+import kttp.io.EndOfStream
 import kttp.log.Logger
 import kttp.io.IOStream
 import kttp.io.LineTooLongException
@@ -29,7 +30,7 @@ class HttpRequestHandler {
 
     private fun readRequestLine(io: IOStream): RequestLine {
 
-        var requestLineString: String
+        var requestLineString = ""
         try {
             requestLineString = io.readLine()
             if (requestLineString.isEmpty()) // Got empty line try next line https://www.rfc-editor.org/rfc/rfc9112#section-2.2-6
@@ -42,6 +43,8 @@ class HttpRequestHandler {
             } else {
                 throw RequestLineTooLong()
             }
+        } catch (e: EndOfStream) {
+            log.debug { "End of Stream" }
         }
 
         val requestLine = RequestLine(requestLineString)
