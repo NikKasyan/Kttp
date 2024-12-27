@@ -9,7 +9,6 @@ import java.net.URI
 class HttpClient(baseURL: String) {
 
     private val baseURI: URI
-
     companion object {
         fun get(requestUrl: String, httpHeaders: HttpHeaders = HttpHeaders()): HttpResponse {
             return HttpClient(requestUrl).get(httpHeaders = httpHeaders)
@@ -39,6 +38,10 @@ class HttpClient(baseURL: String) {
         val socket = Socket(baseURI.host, getPort())
         val io = IOStream(socket.getInputStream(), socket.getOutputStream())
 
+        if(!httpHeaders.hasHost())
+            httpHeaders.withHost(baseURI)
+        if(!method.allowsBody())
+            httpHeaders.removeContentLength()
 
         val request = HttpRequest.from(method, URI(requestUrl), httpHeaders)
 
@@ -57,7 +60,7 @@ class HttpClient(baseURL: String) {
             if(headers.hasTransferEncoding())
                 HttpBody.withTransferEncodingRequest(io, headers)
             else
-                HttpBody(io, headers.contentLengthLong())
+                HttpBody(io, headers.contentLength)
 
         log.debug { "Body: $body" }
 
