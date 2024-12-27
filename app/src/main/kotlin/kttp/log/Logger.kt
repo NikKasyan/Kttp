@@ -23,27 +23,27 @@ class Logger(clazz: Class<*>) {
     }
     fun debug(format: String, vararg arguments: Any) = log.debug(format, arguments)
 
-    fun trace(messageSupplier: () -> String){
+    fun trace(messageSupplier: () -> String?){
         if(log.isTraceEnabled)
             log.trace(messageSupplier())
     }
 
-    fun info(messageSupplier: () -> String){
+    fun info(messageSupplier: () -> String?){
         if(log.isInfoEnabled)
             log.info(messageSupplier())
     }
 
-    fun warn(messageSupplier: () -> String){
+    fun warn(messageSupplier: () -> String?){
         if(log.isWarnEnabled)
             log.warn(messageSupplier())
     }
 
-    fun error(messageSupplier: () -> String){
+    fun error(messageSupplier: () -> String?){
         if(log.isErrorEnabled)
             log.error(messageSupplier())
     }
 
-    fun debug(messageSupplier: () -> String){
+    fun debug(messageSupplier: () -> String?){
         if(log.isDebugEnabled)
             log.debug(messageSupplier())
     }
