@@ -86,6 +86,6 @@ class HttpServerConnectionTest {
 
 
     private fun createSocket(): Socket {
-        return Socket(InetAddress.getLocalHost(), defaultPort)
+        return Socket(httpServer.getHost(), defaultPort)
     }
 }
