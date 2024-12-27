@@ -18,6 +18,8 @@ object CommonHeaders {
     const val ACCEPT = "Accept"
     const val CONTENT_ENCODING = "Content-Encoding"
     const val CONNECTION = "Connection"
+    const val SERVER = "Server"
+    const val CONTENT_TYPE = "Content-Type"
     //Todo: Add missing Common Headers
     // Trailer: https://www.rfc-editor.org/rfc/rfc9110#name-trailer
 
@@ -93,8 +95,59 @@ enum class Connection(val value: String) {
     UPGRADE("upgrade")
 }
 
+object MimeTypes {
+    const val TEXT_PLAIN = "text/plain"
+    const val TEXT_HTML = "text/html"
+    const val TEXT_CSS = "text/css"
+    const val TEXT_JAVASCRIPT = "text/javascript"
+    const val TEXT_XML = "text/xml"
+    const val TEXT_CSV = "text/csv"
+    const val TEXT_MARKDOWN = "text/markdown"
+    const val TEXT_RTF = "text/rtf"
+    const val TEXT_VCARD = "text/vcard"
+    const val TEXT_VCALENDAR = "text/vcalendar"
+
+    const val IMAGE_GIF = "image/gif"
+    const val IMAGE_JPEG = "image/jpeg"
+    const val IMAGE_PNG = "image/png"
+    const val IMAGE_SVG = "image/svg+xml"
+    const val IMAGE_WEBP = "image/webp"
+    const val IMAGE_ICO = "image/x-icon"
+    const val IMAGE_BMP = "image/bmp"
+    const val IMAGE_TIFF = "image/tiff"
+    const val IMAGE_PSD = "image/vnd.adobe.photoshop"
+
+    const val AUDIO_MP3 = "audio/mpeg"
+    const val AUDIO_OGG = "audio/ogg"
+    const val AUDIO_WAV = "audio/wav"
+    const val AUDIO_FLAC = "audio/flac"
+    const val AUDIO_AAC = "audio/aac"
+    const val AUDIO_WMA = "audio/x-ms-wma"
+    const val AUDIO_AIFF = "audio/x-aiff"
+    const val AUDIO_MIDI = "audio/midi"
+    const val VIDEO_MP4 = "video/mp4"
+    const val VIDEO_WEBM = "video/webm"
+    const val VIDEO_OGG = "video/ogg"
+    const val VIDEO_FLV = "video/x-flv"
+
+    const val APPLICATION_JSON = "application/json"
+    const val APPLICATION_XML = "application/xml"
+    const val APPLICATION_PDF = "application/pdf"
+    const val APPLICATION_ZIP = "application/zip"
+    const val APPLICATION_GZIP = "application/gzip"
+    const val APPLICATION_TAR = "application/x-tar"
+
+    const val APPLICATION_JAVASCRIPT = "application/javascript"
+    const val APPLICATION_TYPESCRIPT = "application/typescript"
+    const val APPLICATION_WASM = "application/wasm"
+
+    const val APPLICATION_OCTET_STREAM = "application/octet-stream"
+
+    const val MULTIPART_FORM_DATA = "multipart/form-data"
+    const val MULTIPART_MIXED = "multipart/mixed"
 
 
+}
 
 object DateFormats {
     private const val IMF_FIX_DATE = "EEE, dd MMM yyyy HH:mm:ss z"
@@ -129,6 +182,10 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         add(headers)
     }
 
+    constructor(postConstruct: HttpHeaders.() -> Unit) : this() {
+        postConstruct()
+    }
+
     override fun iterator(): Iterator<HttpHeader> {
         return headers.map { HttpHeader(it.key, it.value) }.iterator()
     }
@@ -142,6 +199,8 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     fun remove(key: String) {
         headers.remove(key)
     }
+
+    fun has(key: String): Boolean = headers.containsKey(key)
 
     fun add(headerString: String): HttpHeaders {
         add(HttpHeader(headerString))
@@ -220,6 +279,10 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return distinctContentLengths.first()!!
     }
 
+    fun removeContentLength() {
+        headers.remove(CommonHeaders.CONTENT_LENGTH)
+    }
+
     var userAgent: String?
         get() = if (hasUserAgent()) userAgent() else null
         set(value) {
@@ -257,7 +320,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun withHost(uri: URI): HttpHeaders {
-        val port = if (uri.port == -1) "" else ":${uri.port}"
+        val port = if (uri.port == -1 || uri.port == 80 || uri.port == 443) "" else ":${uri.port}"
         headers[CommonHeaders.HOST] = "${uri.host}$port"
         return this
     }
@@ -391,7 +454,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
                 withDate(value)
         }
 
-    fun withDate(date: Date, timeZone: TimeZone = TimeZone.getDefault(), locale: Locale = Locale.US): HttpHeaders {
+    fun withDate(date: Date = Date(), timeZone: TimeZone = TimeZone.getDefault(), locale: Locale = Locale.US): HttpHeaders {
         val dateString = convertToImfFixDate(date, timeZone, locale)
         headers[CommonHeaders.DATE] = dateString
         return this
@@ -491,7 +554,63 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return headers[CommonHeaders.CONNECTION]!!
     }
 
+    var server: String?
+        get() = if (hasServer()) server() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.SERVER)
+            else
+                withServer(value)
+        }
 
+    fun withServer(server: String): HttpHeaders {
+        headers[CommonHeaders.SERVER] = server
+        return this
+    }
+
+    fun hasServer(): Boolean {
+        return headers.containsKey(CommonHeaders.SERVER)
+    }
+
+    fun server(): String {
+        return headers[CommonHeaders.SERVER]!!
+    }
+
+    fun serverAsString(): String {
+        return headers[CommonHeaders.SERVER]!!
+    }
+
+    var contentType : String?
+        get() = if (hasContentType()) contentType() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.CONTENT_TYPE)
+            else
+                withContentType(value)
+        }
+
+    /**
+     * Adds the Content-Type header with the given contentType
+     * @see MimeTypes for common content types
+     * @param contentType The content type to add
+     * @return The HttpHeaders object
+     */
+    fun withContentType(contentType: String): HttpHeaders {
+        headers[CommonHeaders.CONTENT_TYPE] = contentType
+        return this
+    }
+
+    fun hasContentType(): Boolean {
+        return headers.containsKey(CommonHeaders.CONTENT_TYPE)
+    }
+
+    fun contentType(): String {
+        return headers[CommonHeaders.CONTENT_TYPE]!!
+    }
+
+    fun contentTypeAsString(): String {
+        return headers[CommonHeaders.CONTENT_TYPE]!!
+    }
 
 
     fun toList(): List<HttpHeader> {
@@ -515,6 +634,13 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
 
     override fun hashCode(): Int {
         return headers.hashCode()
+    }
+
+    fun addMissingHeaders(headers: HttpHeaders) {
+        headers.forEach {
+            if (!has(it.key))
+                add(it)
+        }
     }
 
 }
