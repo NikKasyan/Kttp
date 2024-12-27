@@ -39,6 +39,13 @@ class IOStream(private val inputStream: InputStream,
         output.flush()
     }
 
+    fun writeFromStream(inputStream: InputStream) {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        inputStream.transferTo(output)
+        output.flush()
+    }
+
     fun readLine(): String {
         if(isClosed)
             throw StreamAlreadyClosed()
