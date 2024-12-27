@@ -11,6 +11,13 @@ class Parameters(private val parameters: MutableMap<String, MutableList<String>>
     var size = 0
         private set
 
+    companion object {
+        fun fromQuery(query: String?): Parameters {
+            val parameters = Parameters()
+            parameters.addFromQuery(query)
+            return parameters
+        }
+    }
     fun addFromQuery(query: String?) {
         if (query == null)
             return

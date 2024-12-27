@@ -9,11 +9,7 @@ class ParametersTest {
     @Test
     fun testAddFromQuery() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=value1&key2=value2&key3=value3"
-
-        // When
-        parameters.addFromQuery(query)
+        val parameters = Parameters.fromQuery("key1=value1&key2=value2&key3=value3")
 
         // Then
         assertEquals(parameters.size, 3)
@@ -25,11 +21,7 @@ class ParametersTest {
     @Test
     fun testParameterToSimpleObject() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=value1&key2=value2&key3=value3"
-
-        // When
-        parameters.addFromQuery(query)
+        val parameters = Parameters.fromQuery("key1=value1&key2=value2&key3=value3")
 
         val testObject = parameters.to<ParameterSimpleObject>()
 
@@ -43,11 +35,7 @@ class ParametersTest {
     @Test
     fun testParameterToSimpleIterableObject() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=value1&key2=value2&key3=value3&key1=value4&key2=value"
-
-        // When
-        parameters.addFromQuery(query)
+        val parameters = Parameters.fromQuery("key1=value1&key2=value2&key3=value3&key1=value4&key2=value")
 
         val testObject = parameters.to<ParameterSimpleIterableObject>()
 
@@ -64,12 +52,8 @@ class ParametersTest {
     @Test
     fun testParameterToNestedObject() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=value1&key2=value2&key3=value3&nested.key1=value4&nested.key2=value5&nested.key3=value6"
+        val parameters = Parameters.fromQuery("key1=value1&key2=value2&key3=value3&nested.key1=value4&nested.key2=value5&nested.key3=value6")
 
-        // When
-
-        parameters.addFromQuery(query)
 
         val testObject = parameters.to<ParameterNestedObject>()
 
@@ -86,11 +70,7 @@ class ParametersTest {
     @Test
     fun testParameterToComplexObject() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=1&key2=2&key3=true&nested.key1=value1&nested.key2=value2&nested.key3=value3&nested.key1=value4&nested.key2=value&nested.key3=value5"
-
-        // When
-        parameters.addFromQuery(query)
+        val parameters = Parameters.fromQuery("key1=1&key2=2&key3=true&nested.key1=value1&nested.key2=value2&nested.key3=value3&nested.key1=value4&nested.key2=value&nested.key3=value5")
 
         val testObject = parameters.to<ParameterComplexObject>()
 
@@ -111,12 +91,7 @@ class ParametersTest {
     @Test
     fun testParameterToPrimitiveArray() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=1&key2=2&key3=true"
-
-        // When
-        parameters.addFromQuery(query)
-
+        val parameters = Parameters.fromQuery("key1=1&key2=2&key3=true")
         val testObject = parameters.to<ParameterWithPrimitiveArray>()
 
         // Then
@@ -132,11 +107,7 @@ class ParametersTest {
     @Test
     fun testCustomMapping() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=1&key2=2&key3=true&nested.key1=value1&nested.key2=value2&nested.key3=value3&nested.key1=value4&nested.key2=value&nested.key3=value5"
-
-        // When
-        parameters.addFromQuery(query)
+        val parameters = Parameters.fromQuery("key1=1&key2=2&key3=true&nested.key1=value1&nested.key2=value2&nested.key3=value3&nested.key1=value4&nested.key2=value&nested.key3=value5")
 
         val testObject = parameters.to<ParameterComplexObject>(mappingByType = mapOf(
             ParameterComplexObject::class.java to { _,params -> ParameterComplexObject().also {obj ->
@@ -168,11 +139,7 @@ class ParametersTest {
     @Test
     fun testParameterToMap() {
         // Given
-        val parameters = Parameters()
-        val query = "key1.key1=value1&key2.key2=value2&key3.key3=value3"
-
-        // When
-        parameters.addFromQuery(query)
+        val parameters = Parameters.fromQuery("key1.key1=value1&key2.key2=value2&key3.key3=value3")
 
         val testObject = parameters.to<ParameterWithMap>()
 
@@ -189,12 +156,7 @@ class ParametersTest {
     @Test
     fun testParameterToEnum() {
         // Given
-        val parameters = Parameters()
-        val query = "key1=VALUE1"
-
-        // When
-        parameters.addFromQuery(query)
-
+        val parameters = Parameters.fromQuery("key1=VALUE1")
         val testObject = parameters.to<ParameterWithEnum>()
 
         // Then
