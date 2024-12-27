@@ -57,7 +57,7 @@ class HttpRequestHandlerTest {
         val parsedRequest = HttpRequestHandler().handleRequest(ioStream)
 
         assertEquals(requestLine.method, parsedRequest.method)
-        assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.requestUri)
+        assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.uri)
         assertEquals(requestLine.httpVersion, parsedRequest.httpVersion)
         assertEquals(headers, parsedRequest.headers)
 
@@ -83,7 +83,7 @@ class HttpRequestHandlerTest {
         val parsedRequest = HttpRequestHandler().handleRequest(ioStream)
 
         assertEquals(requestLine.method, parsedRequest.method)
-        assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.requestUri)
+        assertEquals(URI(protocol, null, host, 8080, path, null, null), parsedRequest.uri)
         assertEquals(requestLine.httpVersion, parsedRequest.httpVersion)
         assertEquals(headers, parsedRequest.headers)
 
