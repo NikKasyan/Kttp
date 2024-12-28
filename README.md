@@ -17,6 +17,12 @@ Trying to implement all RFC standards for HTTP/1.1
 https://www.rfc-editor.org/rfc/rfc9112#section-9.3.1
 Add testing for persistent connections
 
+# Todo
+- [ ] Add SSL support
+- [ ] Add support for kotlin coroutines
+- [ ] Add support for HTTP/2?
+- [ ] Add basic X.509 certificate to remove bouncy castle dependency
+
 # Not planned to be implemented soon
 
 compress or x-compress (Currently not feeling like implementing LZW with correct encoding) 

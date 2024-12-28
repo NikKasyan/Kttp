@@ -4,7 +4,7 @@ package kttp.http
 object Main {
     @JvmStatic
     fun main(args: Array<String>) {
-        val httpServer = HttpServer()
+        val httpServer = HttpServer(HttpServerOptions(secure = true))
         httpServer.onGet("/test/**", FileHost("."))
         httpServer.start()
     }
@@ -13,7 +13,7 @@ object Main {
 object Client {
     @JvmStatic
     fun main(args: Array<String>) {
-        val client = HttpClient("localhost")
-        client.get("/test")
+        val client = HttpClient("https://localhost", verifyCertificate = false)
+        val response = client.get("/test")
     }
 }

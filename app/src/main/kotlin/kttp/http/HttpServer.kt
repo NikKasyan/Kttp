@@ -3,6 +3,7 @@ package kttp.http
 import kttp.http.protocol.*
 import kttp.log.Logger
 import kttp.net.ClientConnection
+import kttp.net.ConnectionOptions
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -10,7 +11,6 @@ import java.net.SocketException
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.Comparator
 
 
 typealias Handler = HttpExchange.() -> Unit
@@ -26,10 +26,20 @@ data class HttpReqHandler(val path: String, val methods: EnumSet<Method>, val ha
 }
 
 class HttpServer(
-    private val port: Int = 80,
-    private val hostName: String = "127.0.0.1",
-    maxConcurrentConnections: Int = 20
+    private val httpServerOptions: HttpServerOptions = HttpServerOptions.DEFAULT
 ) {
+
+    constructor(port: Int) : this(HttpServerOptions(port = port))
+
+    constructor(port: Int, hostName: String) : this(HttpServerOptions(port = port, hostName = hostName))
+
+    constructor(port: Int, hostName: String, maxConcurrentConnections: Int) : this(
+        HttpServerOptions(
+            port = port,
+            hostName = hostName,
+            maxConcurrentConnections = maxConcurrentConnections
+        )
+    )
 
 
     private lateinit var serverSocket: ServerSocket
@@ -37,9 +47,9 @@ class HttpServer(
     private var isRunning = false
 
 
-    private val executorService = Executors.newFixedThreadPool(maxConcurrentConnections)
+    private val executorService = Executors.newFixedThreadPool(httpServerOptions.maxConcurrentConnections)
 
-    private val openConnections = ArrayList<ClientConnection>(maxConcurrentConnections)
+    private val openConnections = ArrayList<ClientConnection>(httpServerOptions.maxConcurrentConnections)
 
     private val numberOfConnections: AtomicInteger = AtomicInteger(0)
 
@@ -50,11 +60,7 @@ class HttpServer(
 
     private val handlerRegistry = HttpContextRegistry(ArrayList())
 
-
-    init {
-        if (port < 0 || port > 0xFFFF)
-            throw IllegalArgumentException("port must be between 0 and ${0xFFFF}")
-    }
+    private val connectionOptions = ConnectionOptions(httpServerOptions.socketTimeout)
 
     fun onGet(path: String, handler: Handler) {
         addHandler(HttpReqHandler(path, EnumSet.of(Method.GET), handler))
@@ -121,8 +127,11 @@ class HttpServer(
         if (isRunning)
             throw IllegalStateException("Server can only be started once")
         isRunning = true
+        val hostName = httpServerOptions.hostName
+        val port = httpServerOptions.port
         log.info { "Starting server on $hostName:$port" }
-        this.serverSocket = ServerSocket()
+        val socketFactory = httpServerOptions.socketFactory
+        this.serverSocket = socketFactory.createServerSocket()
         serverSocket.bind(InetSocketAddress(hostName, port))
         acceptNewSockets()
 
@@ -132,10 +141,10 @@ class HttpServer(
         while (isRunning) {
             try {
                 val socket = serverSocket.accept()
-                log.info { "Got new Connection" }
+                log.debug { "Got new Connection" }
                 handleNewSocket(socket)
             } catch (e: SocketException) {
-                log.info { "Connection closed" }
+                log.debug { "Connection closed" }
             }
 
         }
@@ -150,7 +159,7 @@ class HttpServer(
     private fun handleSocket(socket: Socket) {
 
         numberOfConnections.incrementAndGet()
-        val clientConnection = ClientConnection(socket)
+        val clientConnection = ClientConnection(socket, connectionOptions)
         openConnections.add(clientConnection)
         try {
             var connectionOpen = true;
@@ -259,13 +268,16 @@ class HttpServer(
     }
 
     fun getBaseUri(): String {
-        return "http://${getHost()}"
+        return if (httpServerOptions.secure)
+            "https://${getHost()}"
+        else
+            "http://${getHost()}"
     }
 
     fun getHost(): String {
-        if (port == 80 || port == 443)
-            return hostName
-        return "$hostName:$port"
+        if (httpServerOptions.port == 80 || httpServerOptions.port == 443)
+            return httpServerOptions.hostName
+        return "${httpServerOptions.hostName}:${httpServerOptions.port}"
     }
 
 }
@@ -312,7 +324,7 @@ class HttpContextRegistry(private val httpRequestHandlers: MutableList<HttpReqHa
                     pathIndex++
                     requestIndex++
                 }
-                if(requestPath.size + 1 == handlerPath.size && handlerPath.last().contains("*"))
+                if (requestPath.size + 1 == handlerPath.size && handlerPath.last().contains("*"))
                     list.add(handler to requestIndex)
                 else if (pathIndex == handlerPath.size && requestIndex == requestPath.size)
                     list.add(handler to requestIndex)

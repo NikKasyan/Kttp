@@ -33,6 +33,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.4.11")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
     implementation("ch.qos.logback:logback-classic:1.5.6")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.72")
 
 //    add("benchmarkImplementation", sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + sourceSets.test.get().output + sourceSets.test.get().runtimeClasspath)
 
