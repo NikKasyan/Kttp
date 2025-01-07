@@ -15,15 +15,14 @@ import kotlin.test.assertEquals
 class HttpServerResponseTest {
     private val port = 8080
 
-    private lateinit var server: HttpServer
+    private var server: HttpServer = HttpServer(port)
     private lateinit var client: ClientConnection
 
     init {
         thread {
-            server = HttpServer(port)
             server.start()
         }
-        Thread.sleep(200)
+        server.waitUntilStarted()
     }
     @BeforeEach
     fun setup() {

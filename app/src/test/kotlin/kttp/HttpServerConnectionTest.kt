@@ -20,12 +20,11 @@ class HttpServerConnectionTest {
     private val defaultPort = 80
 
     init{
-
+        this.httpServer = HttpServer(defaultPort)
         thread {
-            this.httpServer = HttpServer(defaultPort)
             httpServer.start()
         }
-        Thread.sleep(100)
+        httpServer.waitUntilStarted()
     }
 
     @Test

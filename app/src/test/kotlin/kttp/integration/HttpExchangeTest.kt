@@ -18,7 +18,7 @@ class HttpExchangeTest {
         thread {
             server.start()
         }
-        Thread.sleep(200)
+        server.waitUntilStarted()
     }
 
 

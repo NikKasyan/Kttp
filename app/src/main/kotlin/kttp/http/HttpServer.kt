@@ -274,7 +274,6 @@ class HttpServer(
         isRunning = false
         hasStarted = false
         start.release(start.queueLength)
-        start.acquire()
         executorService.shutdown()
         openConnections.toList().forEach { it.close() }
         openConnections.clear()
