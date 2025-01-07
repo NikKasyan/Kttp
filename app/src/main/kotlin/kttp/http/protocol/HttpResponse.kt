@@ -24,21 +24,29 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
             return fromStatus(HttpStatus.NOT_FOUND, headers, body)
         }
 
+        fun forbidden(headers: HttpHeaders = HttpHeaders(), body: String): HttpResponse {
+            return fromStatus(HttpStatus.FORBIDDEN, headers, body)
+        }
+
         fun fromStatus(
             httpStatus: HttpStatus,
             headers: HttpHeaders = HttpHeaders(),
             body: HttpBody = HttpBody()
         ): HttpResponse {
             val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
-            if (!headers.hasContentLength() && body.hasContentLength())
+            if (!headers.hasContentLength() && body.hasContentLength() && !headers.hasContentEncoding())
                 headers.withContentLength(body.contentLength!!)
+            else if(!headers.hasContentLength() && headers.hasContentEncoding())
+                headers.withTransferEncoding(TransferEncoding.CHUNKED)
             return HttpResponse(statusLine, headers, body)
         }
 
         fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
             val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
-            if (!headers.hasContentLength())
+            if (!headers.hasContentLength() && !headers.hasContentEncoding())
                 headers.withContentLength(body.length.toLong())
+            else if(!headers.hasContentLength() && headers.hasContentEncoding())
+                headers.withTransferEncoding(TransferEncoding.CHUNKED)
             return HttpResponse(statusLine, headers, HttpBody.fromString(body))
         }
 

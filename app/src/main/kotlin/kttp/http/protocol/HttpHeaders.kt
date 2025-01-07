@@ -20,6 +20,7 @@ object CommonHeaders {
     const val CONNECTION = "Connection"
     const val SERVER = "Server"
     const val CONTENT_TYPE = "Content-Type"
+    const val ACCEPT_ENCODING = "Accept-Encoding"
     //Todo: Add missing Common Headers
     // Trailer: https://www.rfc-editor.org/rfc/rfc9110#name-trailer
 
@@ -36,7 +37,7 @@ open class Encoding constructor(val value: String, val parameters: Map<String, S
         if (this === other) return true
         if (other == null || this::class != other::class) return false
 
-        other as TransferEncoding
+        other as Encoding
 
         return value == other.value
     }
@@ -45,6 +46,7 @@ open class Encoding constructor(val value: String, val parameters: Map<String, S
         return value.hashCode()
     }
 }
+
 class TransferEncoding private constructor(value: String, parameters: Map<String, String> = emptyMap()): Encoding(value, parameters) {
 
     companion object {
@@ -52,11 +54,6 @@ class TransferEncoding private constructor(value: String, parameters: Map<String
             return when (value.lowercase()) {
                 CHUNKED.value -> CHUNKED
                 IDENTITY.value -> IDENTITY
-                GZIP.value -> GZIP
-                "x-gzip" -> GZIP
-                COMPRESS.value -> COMPRESS
-                "x-compress" -> COMPRESS
-                DEFLATE.value -> DEFLATE
                 else -> {
                     if (value.contains(";"))
                         byEncodingWithParameter(value)
@@ -82,10 +79,50 @@ class TransferEncoding private constructor(value: String, parameters: Map<String
 
         val CHUNKED = TransferEncoding("chunked")
         val IDENTITY = TransferEncoding("identity")
-        val GZIP = TransferEncoding("gzip")
-        val COMPRESS = TransferEncoding("compress")
-        val DEFLATE = TransferEncoding("deflate")
 
+    }
+}
+
+class ContentEncoding private constructor(value: String, parameters: Map<String, String> = emptyMap()): Encoding(value, parameters) {
+
+    companion object {
+        fun byEncoding(value: String): ContentEncoding {
+            return when (value.lowercase()) {
+                GZIP.value -> GZIP
+                "x-gzip" -> GZIP
+                COMPRESS.value -> COMPRESS
+                "x-compress" -> COMPRESS
+                DEFLATE.value -> DEFLATE
+                BZIP2.value -> BZIP2
+                BR.value -> BR
+                else -> {
+                    if (value.contains(";"))
+                        byEncodingWithParameter(value)
+                    else
+                        throw UnknownContentEncoding(value)
+                }
+            }
+        }
+
+        private fun byEncodingWithParameter(value: String): ContentEncoding {
+            val parts = value.split(";", limit = 2)
+            if (parts.size == 1)
+                return ContentEncoding(parts[0])
+            val parameters = parts[1].split(";").map {
+                val keyValue = it.split("=", limit = 2)
+                if (keyValue.size == 1)
+                    return@map Pair(keyValue[0], "")
+                Pair(keyValue[0], keyValue[1])
+            }.toMap()
+            val encoding = byEncoding(parts[0])
+            return ContentEncoding(encoding.value, parameters)
+        }
+
+        val GZIP = ContentEncoding("gzip")
+        val COMPRESS = ContentEncoding("compress")
+        val DEFLATE = ContentEncoding("deflate")
+        val BZIP2 = ContentEncoding("bzip2")
+        val BR = ContentEncoding("br")
     }
 }
 
@@ -132,6 +169,7 @@ object MimeTypes {
 
     const val APPLICATION_JSON = "application/json"
     const val APPLICATION_XML = "application/xml"
+    const val APPLICATION_XHTML = "application/xhtml+xml"
     const val APPLICATION_PDF = "application/pdf"
     const val APPLICATION_ZIP = "application/zip"
     const val APPLICATION_GZIP = "application/gzip"
@@ -612,6 +650,75 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return headers[CommonHeaders.CONTENT_TYPE]!!
     }
 
+    var acceptEncoding: String?
+        get() = if (hasAcceptEncoding()) acceptEncoding() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.ACCEPT_ENCODING)
+            else
+                withAcceptEncoding(value)
+        }
+
+    fun withAcceptEncoding(vararg encoding: String): HttpHeaders {
+        return withAcceptEncoding(encoding.joinToString())
+    }
+
+    fun withAcceptEncoding(acceptEncoding: String): HttpHeaders {
+        headers[CommonHeaders.ACCEPT_ENCODING] = acceptEncoding
+        return this
+    }
+    fun withAcceptEncoding(vararg encoding: Encoding): HttpHeaders {
+        return withAcceptEncoding(encoding.joinToString { it.value })
+    }
+
+    fun hasAcceptEncoding(): Boolean {
+        return headers.containsKey(CommonHeaders.ACCEPT_ENCODING)
+    }
+
+    fun acceptEncoding(): String {
+        return headers[CommonHeaders.ACCEPT_ENCODING]!!
+    }
+
+    fun acceptEncodingAsList(): List<String> {
+        return acceptEncoding().split(",").map { it.trim() }
+    }
+
+    fun removeAcceptEncoding() {
+        headers.remove(CommonHeaders.ACCEPT_ENCODING)
+    }
+
+    fun acceptsEncoding(transferEncoding: Encoding) : Boolean {
+        if(!hasAcceptEncoding() || acceptEncodingAsList().isEmpty())
+            return false // If no Accept-Encoding is present, then it accepts no encodings
+        return acceptEncodingAsList().contains(transferEncoding.value)
+    }
+
+    var contentEncoding: ContentEncoding?
+        get() = if (hasContentEncoding()) contentEncoding() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.CONTENT_ENCODING)
+            else
+                withContentEncoding(value)
+        }
+
+    fun withContentEncoding(contentEncoding: ContentEncoding): HttpHeaders {
+        headers[CommonHeaders.CONTENT_ENCODING] = contentEncoding.toString()
+        return this
+    }
+
+    fun hasContentEncoding(): Boolean {
+        return headers.containsKey(CommonHeaders.CONTENT_ENCODING)
+    }
+
+    fun contentEncoding(): ContentEncoding {
+        return ContentEncoding.byEncoding(headers[CommonHeaders.CONTENT_ENCODING]!!)
+    }
+
+    fun contentEncodingAsString(): String {
+        return headers[CommonHeaders.CONTENT_ENCODING]!!
+    }
+
 
     fun toList(): List<HttpHeader> {
         return headers.toList().map { HttpHeader(it) }
@@ -732,6 +839,8 @@ class TooManyHostHeaders : InvalidHeader("May not contain multiple Host Fields")
 
 class UnknownTransferEncoding(transferEncoding: String) :
     InvalidHeader("Unknown Transfer Encoding: $transferEncoding")
+
+class UnknownContentEncoding(contentEncoding: String) : InvalidHeader("Unknown Content Encoding: $contentEncoding")
 
 class InvalidContentLength(message: String) : InvalidHeader("Invalid Content-Length: $message")
 

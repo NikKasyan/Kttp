@@ -2,6 +2,7 @@ package kttp.http.protocol
 
 import kttp.http.protocol.transfer.ChunkedInputStream
 import kttp.http.protocol.transfer.ChunkingInputStream
+import kttp.http.protocol.transfer.GZIPingInputStream
 import kttp.io.DefaultInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
@@ -28,19 +29,45 @@ class HttpBody(
             return HttpBody(ByteArrayInputStream(body), body.size.toLong())
         }
 
-        fun withTransferEncodingRequest(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
+        fun withTransferEncodings(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
             val transferEncodings = httpHeaders.transferEncodings()
             if (transferEncodings.isEmpty())
                 return HttpBody(body, httpHeaders.contentLength)
-            return buildTransferPipelineForRequest(body, transferEncodings, httpHeaders)
+            return wrapWithTransferEncoding(body, transferEncodings, httpHeaders)
         }
 
-        fun withTransferEncodingResponse(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
+        fun withTransferDecoding(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
             val transferEncodings = httpHeaders.transferEncodings()
             if (transferEncodings.isEmpty())
                 return HttpBody(body, httpHeaders.contentLength)
-            return buildTransferEncodedPipelineForResponse(body, transferEncodings, httpHeaders)
+            return wrapWithTransferDecoding(body, transferEncodings, httpHeaders)
         }
+
+        fun withDecoding(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
+            val transferBody =
+                if (httpHeaders.hasTransferEncoding())
+                    wrapWithTransferDecoding(body, httpHeaders.transferEncodings(), httpHeaders)
+                else body
+
+            return if (httpHeaders.hasContentEncoding())
+                wrapWithContentDecoding(transferBody, httpHeaders.contentEncoding())
+            else
+                HttpBody(transferBody, httpHeaders.contentLength)
+        }
+
+        fun withEncoding(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
+            val encodedContent = if (httpHeaders.hasContentEncoding())
+                wrapWithContentEncoding(body, httpHeaders.contentEncoding())
+            else
+                body
+
+            return if (httpHeaders.hasTransferEncoding())
+                wrapWithTransferEncoding(encodedContent, httpHeaders.transferEncodings(), httpHeaders)
+            else
+                HttpBody(encodedContent, httpHeaders.contentLength)
+        }
+
+
 
         fun empty(): HttpBody {
             return HttpBody()
@@ -48,13 +75,14 @@ class HttpBody(
 
     }
 
-    fun toEncodedRequestBody(httpHeaders: HttpHeaders): HttpBody {
-        return withTransferEncodingRequest(body, httpHeaders)
+    fun toDecodedBody(httpHeaders: HttpHeaders): HttpBody {
+        return withDecoding(body, httpHeaders)
     }
 
-    fun toEncodedResponseBody(httpHeaders: HttpHeaders): HttpBody {
-        return withTransferEncodingResponse(body, httpHeaders)
+    fun toEncodedBody(httpHeaders: HttpHeaders): HttpBody {
+        return withEncoding(body, httpHeaders)
     }
+
 
     fun hasContentLength(): Boolean {
         return contentLength != null
@@ -121,24 +149,7 @@ class HttpBody(
 
 }
 
-private fun buildTransferPipelineForRequest(
-    body: InputStream,
-    transferEncodings: List<TransferEncoding>,
-    httpHeaders: HttpHeaders
-): HttpBody {
-    var currentBody = body
-    for (transferEncoding in transferEncodings) {
-        currentBody = when (transferEncoding) {
-            TransferEncoding.CHUNKED -> ChunkedInputStream(currentBody, httpHeaders)
-            TransferEncoding.DEFLATE -> InflaterInputStream(currentBody)
-            TransferEncoding.GZIP -> GZIPInputStream(currentBody)
-            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Request not implemented")
-        }
-    }
-    return HttpBody(currentBody, httpHeaders.contentLength)
-}
-
-private fun buildTransferEncodedPipelineForResponse(
+private fun wrapWithTransferEncoding(
     body: InputStream,
     transferEncodings: List<TransferEncoding>,
     httpHeaders: HttpHeaders
@@ -147,10 +158,51 @@ private fun buildTransferEncodedPipelineForResponse(
     for (transferEncoding in transferEncodings) {
         currentBody = when (transferEncoding) {
             TransferEncoding.CHUNKED -> ChunkingInputStream(currentBody, httpHeaders)
-            TransferEncoding.DEFLATE  -> DeflaterInputStream(currentBody)
-            TransferEncoding.GZIP -> GZIPInputStream(currentBody)
-            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Response not implemented")
+            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Request not implemented")
         }
     }
     return HttpBody(currentBody, httpHeaders.contentLength)
+}
+
+private fun wrapWithTransferDecoding(
+    body: InputStream,
+    transferEncodings: List<TransferEncoding>,
+    httpHeaders: HttpHeaders
+): HttpBody {
+    var currentBody = body
+    for (transferEncoding in transferEncodings) {
+        currentBody = when (transferEncoding) {
+            TransferEncoding.CHUNKED -> ChunkedInputStream(currentBody, httpHeaders)
+            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Request not implemented")
+        }
+    }
+    return HttpBody(currentBody, httpHeaders.contentLength)
+}
+
+private fun wrapWithContentDecoding(
+    body: InputStream,
+    contentEncoding: ContentEncoding
+): HttpBody {
+    var currentBody = body
+    currentBody = when (contentEncoding) {
+        ContentEncoding.GZIP -> GZIPInputStream(currentBody)
+        ContentEncoding.DEFLATE -> InflaterInputStream(currentBody)
+        ContentEncoding.BR -> throw NotImplementedError("Brotli encoding not implemented")
+        else -> currentBody
+    }
+    return HttpBody(currentBody)
+}
+
+private fun wrapWithContentEncoding(
+    body: InputStream,
+    contentEncoding: ContentEncoding
+): HttpBody {
+    var currentBody = body
+    currentBody = when (contentEncoding) {
+        ContentEncoding.GZIP -> GZIPingInputStream(currentBody)
+        ContentEncoding.DEFLATE -> DeflaterInputStream(currentBody)
+        ContentEncoding.BR -> throw NotImplementedError("Brotli encoding not implemented")
+        else -> currentBody
+    }
+    return HttpBody(currentBody)
 }

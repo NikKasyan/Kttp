@@ -58,10 +58,7 @@ class HttpHeaderTest {
     fun transferEncodingIdentityWithChunked_shouldThrowException(){
         assertThrows<InvalidTransferEncoding> { HttpHeaders().withTransferEncoding(TransferEncoding.IDENTITY, TransferEncoding.CHUNKED) }
     }
-    @Test
-    fun transferEncodingChunked_shouldBeLast(){
-        assertThrows<InvalidTransferEncoding> {  HttpHeaders().withTransferEncoding(TransferEncoding.CHUNKED, TransferEncoding.GZIP)}
-    }
+
 
     @Test
     fun transferEncodingChunked_shouldBeOncePresent(){
