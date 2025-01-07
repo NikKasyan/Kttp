@@ -41,8 +41,6 @@ class HttpRequestHandler {
             } else {
                 throw RequestLineTooLong()
             }
-        } catch (e: EndOfStream) {
-            log.debug { "End of Stream" }
         }
 
         val requestLine = RequestLine(requestLineString)
@@ -90,8 +88,7 @@ class HttpRequestHandler {
     private fun readBody(io: IOStream, requestLine: RequestLine, headers: HttpHeaders): HttpBody {
 
         val body = if (requestLine.method.allowsBody())
-            if(headers.hasTransferEncoding()) HttpBody.withTransferEncodingRequest(io, headers)
-            else HttpBody(io, headers.contentLengthLong())
+            HttpBody.withDecoding(io, headers)
         else HttpBody.empty()
 
         log.debug { "Body: $body" }
