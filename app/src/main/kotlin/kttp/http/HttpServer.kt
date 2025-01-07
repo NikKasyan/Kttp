@@ -1,6 +1,7 @@
 package kttp.http
 
 import kttp.http.protocol.*
+import kttp.io.EndOfStream
 import kttp.log.Logger
 import kttp.net.ClientConnection
 import kttp.net.ConnectionOptions
@@ -10,6 +11,7 @@ import java.net.Socket
 import java.net.SocketException
 import java.util.*
 import java.util.concurrent.Executors
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 
 
@@ -46,6 +48,10 @@ class HttpServer(
 
     private var isRunning = false
 
+    private val start = Semaphore(0)
+
+    private var hasStarted = false
+
 
     private val executorService = Executors.newFixedThreadPool(httpServerOptions.maxConcurrentConnections)
 
@@ -63,55 +69,55 @@ class HttpServer(
     private val connectionOptions = ConnectionOptions(httpServerOptions.socketTimeout)
 
     fun onGet(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.GET), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.GET), handler))
     }
 
     fun onPost(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.POST), handler)).apply { }
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.POST), handler)).apply { }
     }
 
     fun onPut(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.PUT), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.PUT), handler))
     }
 
     fun onDelete(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.DELETE), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.DELETE), handler))
     }
 
     fun onPatch(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.PATCH), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.PATCH), handler))
     }
 
     fun onHead(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.HEAD), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.HEAD), handler))
     }
 
     fun onConnect(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.CONNECT), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.CONNECT), handler))
     }
 
     fun onOptions(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.OPTIONS), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.OPTIONS), handler))
     }
 
     fun onTrace(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.of(Method.TRACE), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.TRACE), handler))
     }
 
     fun on(method: Method, path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, method, handler))
+        addRequestHandler(HttpReqHandler(path, method, handler))
     }
 
     fun on(methods: List<Method>, path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, methods, handler))
+        addRequestHandler(HttpReqHandler(path, methods, handler))
     }
 
     fun on(methods: EnumSet<Method>, path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, methods, handler))
+        addRequestHandler(HttpReqHandler(path, methods, handler))
     }
 
     fun on(path: String, handler: Handler) {
-        addHandler(HttpReqHandler(path, EnumSet.allOf(Method::class.java), handler))
+        addRequestHandler(HttpReqHandler(path, EnumSet.allOf(Method::class.java), handler))
     }
 
     fun removeHandler(path: String) {
@@ -130,6 +136,7 @@ class HttpServer(
         val hostName = httpServerOptions.hostName
         val port = httpServerOptions.port
         log.info { "Starting server on $hostName:$port" }
+        log.info { getBaseUri() }
         val socketFactory = httpServerOptions.socketFactory
         this.serverSocket = socketFactory.createServerSocket()
         serverSocket.bind(InetSocketAddress(hostName, port))
@@ -137,8 +144,18 @@ class HttpServer(
 
     }
 
+    fun waitUntilStarted() {
+        if(hasStarted)
+            return
+        start.acquire()
+    }
+
     private fun acceptNewSockets() {
         while (isRunning) {
+            if (!hasStarted) {
+                start.release(start.queueLength)
+                hasStarted = true
+            }
             try {
                 val socket = serverSocket.accept()
                 log.debug { "Got new Connection" }
@@ -166,10 +183,12 @@ class HttpServer(
             while (connectionOpen) {
                 //Todo: Handle any errors that might occur during requests
                 val httpRequest = HttpRequestHandler().handleRequest(clientConnection.io)
-                connectionOpen = httpRequest.headers.hasConnection(Connection.CLOSE)
+                connectionOpen = !httpRequest.headers.hasConnection(Connection.CLOSE)
                 respond(httpRequest, clientConnection)
 
             }
+        } catch (e: EndOfStream) {
+            log.debug { "End of Stream" }
         } catch (exception: Exception) {
             respondWithError(clientConnection, exception)
         } finally {
@@ -192,7 +211,7 @@ class HttpServer(
                 log.error(exception) { "Internal Server Error" }
             else
                 log.warn { "Client Error: ${exception.message}" }
-            createDefaultResponseHeaders(it.headers)
+            createDefaultResponseHeaders(headers = it.headers)
         }
         httpResponse.writeTo(clientConnection.io)
     }
@@ -233,7 +252,7 @@ class HttpServer(
         //   (HTTP Version Not Supported) response if it wishes, for any reason,
         //   to refuse service of the client's major protocol version.
         // https://www.rfc-editor.org/rfc/rfc7230#page-14
-        val httpResponse = HttpResponse.ok(createDefaultResponseHeaders())
+        val httpResponse = HttpResponse.ok(createDefaultResponseHeaders(httpRequest))
         val httpExchange = HttpExchange(httpRequest, httpResponse, clientConnection.io)
 
         httpExchange.use {
@@ -246,13 +265,17 @@ class HttpServer(
         }
     }
 
-    private fun addHandler(httpReqHandler: HttpReqHandler) {
+    fun addRequestHandler(httpReqHandler: HttpReqHandler) {
         handlerRegistry.addHandler(httpReqHandler)
     }
 
 
     fun stop() {
         isRunning = false
+        hasStarted = false
+        start.release(start.queueLength)
+        start.acquire()
+        executorService.shutdown()
         openConnections.toList().forEach { it.close() }
         openConnections.clear()
         numberOfConnections.set(0)
@@ -261,10 +284,20 @@ class HttpServer(
 
     }
 
-    private fun createDefaultResponseHeaders(headers: HttpHeaders = HttpHeaders()): HttpHeaders {
-        return headers
-            .withDate()
-            .withServer("Kttp")
+    private fun createDefaultResponseHeaders(
+        request: HttpRequest? = null,
+        headers: HttpHeaders = HttpHeaders()
+    ): HttpHeaders {
+        return headers.also {
+            it.withServer("Kttp")
+            it.withDate()
+            if (httpServerOptions.transferOptions.shouldAlwaysCompress && request != null) {
+                if (request.headers.acceptsEncoding(ContentEncoding.GZIP))
+                    it.withContentEncoding(ContentEncoding.GZIP)
+                else if (request.headers.acceptsEncoding(ContentEncoding.DEFLATE))
+                    it.withContentEncoding(ContentEncoding.DEFLATE)
+            }
+        }
     }
 
     fun getBaseUri(): String {
