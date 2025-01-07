@@ -4,9 +4,11 @@ import kttp.http.HttpClient
 import kttp.http.HttpServer
 import kttp.http.HttpServerOptions
 import kttp.http.TLSOptions
+import kttp.http.protocol.HttpStatus
 import org.junit.jupiter.api.Test
 import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.test.assertEquals
 
 class TLSTest {
 
@@ -23,13 +25,16 @@ class TLSTest {
         thread {
             server.start()
         }
+        server.onGet("/") {
+            respond("Hello World")
+        }
         server.waitUntilStarted()
 
         val client = HttpClient(server.getBaseUri(), verifyCertificate = false)
         val response = client.get()
-        println(response.body.readAsString())
-
-
+        assertEquals(HttpStatus.OK, response.statusLine.status)
+        assertEquals("Hello World", response.body.readAsString())
 
     }
+
 }
