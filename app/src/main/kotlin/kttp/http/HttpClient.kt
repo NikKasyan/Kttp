@@ -19,8 +19,9 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
     private val isSecure: Boolean
         get() = baseURI.scheme == "https"
     private val socketFactory: SocketFactory
+
     companion object {
-        fun get(requestUrl: String, httpHeaders: HttpHeaders = HttpHeaders()): HttpResponse {
+        fun get(requestUrl: String, httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
             return HttpClient(requestUrl).get(httpHeaders = httpHeaders)
         }
     }
@@ -28,35 +29,35 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
     private val log = Logger(javaClass)
 
     init {
-        this.baseURI = fixUri(URI(baseURL))
-        this.socketFactory = if(isSecure) SSL.getSocketFactory(verifyCertificate) else SocketFactory.getDefault()
+        this.baseURI = fixMissingScheme(URI(baseURL))
+        this.socketFactory = if (isSecure) SSL.getSocketFactory(verifyCertificate) else SocketFactory.getDefault()
         if (!this.baseURI.isAbsolute)
             TODO("Throw real exception when baseURI is not absolute")
     }
 
-    private fun fixUri(uri: URI): URI {
+    private fun fixMissingScheme(uri: URI): URI {
         if (uri.scheme == null)
-            if(!uri.scheme.startsWith("https"))
+            if (!uri.scheme.startsWith("https"))
                 return URI("https://${uri}")
-            else if(!uri.scheme.startsWith("http"))
+            else if (!uri.scheme.startsWith("http"))
                 return URI("http://${uri}")
         return uri
     }
 
-    fun get(requestUrl: String = "/", httpHeaders: HttpHeaders = HttpHeaders()): HttpResponse {
+    fun get(requestUrl: String = "/", httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
         return request(Method.GET, requestUrl, httpHeaders)
     }
 
-    fun request(method: Method, requestUrl: String, httpHeaders: HttpHeaders = HttpHeaders()): HttpResponse {
+    fun request(method: Method, requestUrl: String, httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
         val socket = socketFactory.createSocket(baseURI.host, getPort())
 
         doHandshake(socket)
 
         val io = IOStream(socket.getInputStream(), socket.getOutputStream())
 
-        if(!httpHeaders.hasHost())
+        if (!httpHeaders.hasHost())
             httpHeaders.withHost(baseURI)
-        if(!method.allowsBody())
+        if (!method.allowsBody())
             httpHeaders.removeContentLength()
 
         val request = HttpRequest.from(method, URI(requestUrl), httpHeaders)
@@ -67,16 +68,12 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
         val statusLineString = io.readLine()
         val statusLine = StatusLine(statusLineString)
 
-        log.debug{"StatusLine: $statusLine"}
+        log.debug { "StatusLine: $statusLine" }
         val headers = readHeaders(io)
 
-        log.debug{"Headers: $headers"}
+        log.debug { "Headers: $headers" }
 
-        val body =
-            if(headers.hasTransferEncoding())
-                HttpBody.withTransferEncodingRequest(io, headers)
-            else
-                HttpBody(io, headers.contentLength)
+        val body = HttpBody.withDecoding(io, headers)
 
         log.debug { "Body: $body" }
 
@@ -85,12 +82,12 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
     private fun doHandshake(socket: Socket) {
 
-        if(isSecure) {
+        if (isSecure) {
             try {
                 (socket as SSLSocket).startHandshake()
             } catch (e: SSLHandshakeException) {
                 log.error { "Handshake failed: ${e.message}" }
-                if(e.message?.contains("PKIX path building failed") == true) {
+                if (e.message?.contains("PKIX path building failed") == true) {
                     throw CertificateException(e)
                 }
                 socket.close()
@@ -122,6 +119,12 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
 }
 
+private fun createDefaultHeaders() = HttpHeaders {
+    withUserAgent("Kttp/1.0")
+    withAcceptEncoding(ContentEncoding.GZIP, ContentEncoding.DEFLATE)
+    withAccept("*/*")
+    withConnection("close")
+}
 
 
 private object SSL {
@@ -132,7 +135,7 @@ private object SSL {
     }
 
     fun getSocketFactory(verify: Boolean): SSLSocketFactory {
-        return if(verify) SSLContext.getDefault().socketFactory else insecureContext.socketFactory
+        return if (verify) SSLContext.getDefault().socketFactory else insecureContext.socketFactory
     }
 
     class AllTrustManager : X509TrustManager {
@@ -148,4 +151,7 @@ private object SSL {
     }
 }
 
-class CertificateException(cause: Throwable) : RuntimeException("Invalid certificate! You can disable certification by setting verify=false in the HTTPClient. Or fixing your certificate", cause)
+class CertificateException(cause: Throwable) : RuntimeException(
+    "Invalid certificate! You can disable certification by setting verify=false in the HTTPClient. Or fixing your certificate",
+    cause
+)
