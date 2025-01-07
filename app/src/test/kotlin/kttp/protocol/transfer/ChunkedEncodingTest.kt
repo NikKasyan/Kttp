@@ -12,6 +12,17 @@ import kotlin.test.assertEquals
 class ChunkedEncodingTest {
 
     @Test
+    fun chunkingInputStream_shouldChunkUnknownLengthData() {
+        val wikiString = "Wikipedia in\r\n\r\nchunks."
+        val stream = ChunkingInputStream(wikiString.byteInputStream())
+        val chunkedInputStream = ChunkedInputStream(stream)
+
+        val expectedValue = wikiString.toByteArray()
+        val actualValue = chunkedInputStream.readAllBytes()
+
+        assertContentEquals(expectedValue, actualValue)
+    }
+    @Test
     fun chunkingInputStream_shouldBeUnchunkedCorrectly() {
         val stream = RepeatableInputStream("Wiki\r\npedia in\r\n\r\nchunks.".toByteArray(), 14)
         val chunkingInputStream = ChunkingInputStream(stream, 14 to "")

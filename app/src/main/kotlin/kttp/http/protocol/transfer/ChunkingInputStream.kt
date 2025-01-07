@@ -11,7 +11,7 @@ import java.io.InputStream
 class ChunkingInputStream(
     private val inputStream: InputStream,
     headers: HttpHeaders = HttpHeaders(),
-    private val chunkings: List<Chunking> = listOf(100 to "")
+    private val chunkings: List<Chunking> = emptyList()
 ) : TransformingInputStream(inputStream) {
 
     constructor(inputStream: InputStream, vararg list: Chunking) : this(inputStream, HttpHeaders(), list.toList())
@@ -28,8 +28,7 @@ class ChunkingInputStream(
         chunks.map { it to "" })
 
     init {
-        if (chunkings.isEmpty())
-            throw IllegalArgumentException("Chunking list must not be empty")
+
         chunkings.forEach {
             if (it.first <= 0)
                 throw IllegalArgumentException("Chunk size must be greater than 0")
@@ -87,12 +86,12 @@ class ChunkingInputStream(
             return 0
         }
         if (chunkSize == 0) {
-            chunkSize = chunkings[chunkIndex].first
+            chunkSize = currentChunkSize()
         }
 
+        val chunkSizeString = chunkSize.toString(16)
         var writtenBytes = 0
         while (chunkSize > 0 && transformedData.hasCapacity()) {
-            val chunkSizeString = chunkSize.toString(16)
             val byte = chunkSizeString[writtenBytes++].code.toByte()
             transformedData += byte
             chunkSize /= 16
@@ -101,6 +100,12 @@ class ChunkingInputStream(
             state = ChunkingState.CHUNK_SIZE_EXT
         }
         return 0
+    }
+
+    private fun currentChunkSize(): Int {
+        if(chunkings.isNotEmpty())
+            return chunkings[chunkIndex].first
+        return buffer.length
     }
 
     private fun writeChunkSizeEnd(): Int {
@@ -116,7 +121,7 @@ class ChunkingInputStream(
     private fun writeChunkSizeExt(): Int {
         if (chunkExtension.isEmpty()) {
             chunkExtension.clear()
-            val newChunkExtension = chunkings[chunkIndex].second.toByteArray()
+            val newChunkExtension = currentChunkExtension().toByteArray()
             if (newChunkExtension.isNotEmpty())
                 chunkExtension  += SEMICOLON
             chunkExtension.moveFrom(newChunkExtension)
@@ -126,10 +131,16 @@ class ChunkingInputStream(
 
         transformedData.moveFrom(chunkExtension)
         if (chunkExtension.isEmpty()) {
-            chunkSize = chunkings[chunkIndex].first
+            chunkSize = currentChunkSize()
             state = ChunkingState.CHUNK_DATA
         }
         return 0
+    }
+
+    private fun currentChunkExtension(): String {
+        if(chunkings.isNotEmpty())
+            return chunkings[chunkIndex].second
+        return ""
     }
 
     private fun writeChunkData(): Int {
