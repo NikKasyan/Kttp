@@ -19,7 +19,8 @@ Add testing for persistent connections
 
 # Todo
 - [X] Add SSL support
-- [ ] Add support for kotlin coroutines
+- [ ] Add client certificate (verification) support
+- [X] Add support for kotlin coroutines
 - [ ] Add Websocket support
 - [ ] Add support for HTTP/2?
 - [ ] Add basic X.509 certificate to remove bouncy castle dependency

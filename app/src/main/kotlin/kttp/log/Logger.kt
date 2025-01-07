@@ -5,9 +5,7 @@ import org.slf4j.LoggerFactory
 
 class Logger(clazz: Class<*>) {
 
-
     private val log = LoggerFactory.getLogger(clazz)
-
 
     fun trace(format: String, vararg arguments: Any) = log.trace(format, arguments)
     fun info(format: String, vararg arguments: Any) = log.info(format, arguments)

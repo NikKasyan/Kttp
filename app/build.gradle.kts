@@ -8,7 +8,7 @@
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
-    id("org.jetbrains.kotlin.jvm") version "1.8.10"
+    id("org.jetbrains.kotlin.jvm") version "2.1.0"
     // Apply the application plugin to add support for building a CLI application in Java.
     application
 
@@ -34,6 +34,10 @@ dependencies {
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
     implementation("ch.qos.logback:logback-classic:1.5.6")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.72")
+    // User kotlinx.coroutines for asynchronous programming. But only for testing and compilation.
+    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+
 
 //    add("benchmarkImplementation", sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + sourceSets.test.get().output + sourceSets.test.get().runtimeClasspath)
 

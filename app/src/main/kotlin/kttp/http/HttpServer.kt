@@ -10,6 +10,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.util.*
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
@@ -28,7 +29,8 @@ data class HttpReqHandler(val path: String, val methods: EnumSet<Method>, val ha
 }
 
 class HttpServer(
-    private val httpServerOptions: HttpServerOptions = HttpServerOptions.DEFAULT
+    private val httpServerOptions: HttpServerOptions = HttpServerOptions.DEFAULT,
+    private val executorService: ExecutorService = Executors.newFixedThreadPool(httpServerOptions.maxConcurrentConnections)
 ) {
 
     constructor(port: Int) : this(HttpServerOptions(port = port))
@@ -52,9 +54,6 @@ class HttpServer(
 
     private var hasStarted = false
 
-
-    private val executorService = Executors.newFixedThreadPool(httpServerOptions.maxConcurrentConnections)
-
     private val openConnections = ArrayList<ClientConnection>(httpServerOptions.maxConcurrentConnections)
 
     private val numberOfConnections: AtomicInteger = AtomicInteger(0)
@@ -73,7 +72,7 @@ class HttpServer(
     }
 
     fun onPost(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.POST), handler)).apply { }
+        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.POST), handler))
     }
 
     fun onPut(path: String, handler: Handler) {
@@ -137,6 +136,7 @@ class HttpServer(
         val port = httpServerOptions.port
         log.info { "Starting server on $hostName:$port" }
         log.info { getBaseUri() }
+
         val socketFactory = httpServerOptions.socketFactory
         this.serverSocket = socketFactory.createServerSocket()
         serverSocket.bind(InetSocketAddress(hostName, port))
