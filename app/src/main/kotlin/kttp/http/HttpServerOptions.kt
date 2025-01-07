@@ -1,26 +1,10 @@
 package kttp.http
 
 import kttp.http.protocol.HttpVersion
-import kttp.http.security.SSL
-import org.bouncycastle.asn1.x500.X500Name
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
-import org.bouncycastle.cert.X509v3CertificateBuilder
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
-import sun.security.x509.*
-import java.io.File
-import java.io.IOException
-import java.math.BigInteger
-import java.security.*
-import java.security.cert.X509Certificate
+import kttp.security.SSL
 import java.time.Duration
-import java.time.Instant
-import java.util.*
 import javax.net.ServerSocketFactory
-import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManagerFactory
 
 
 data class HttpServerOptions(
@@ -32,6 +16,8 @@ data class HttpServerOptions(
     val tlsOptions: TLSOptions = TLSOptions.DEFAULT,
     val maxConcurrentConnections: Int = 20, // -1 for unlimited
     val socketFactory: ServerSocketFactory = if(secure) tlsOptions.createSocketFactory() else ServerSocketFactory.getDefault(),
+    val transferOptions: TransferOptions = TransferOptions.DEFAULT,
+
 ) {
     companion object {
         val DEFAULT = HttpServerOptions()
@@ -45,9 +31,9 @@ data class HttpServerOptions(
 
 data class TLSOptions(
 
-    private val sslContext: SSLContext = SSL.createDefaultSSLContext(),
+    private val sslContext: SSLContext = SSL.createDefaultSSLContextFromKeyStore(),
 
-) {
+    ) {
     companion object {
         val DEFAULT = TLSOptions()
 
@@ -56,5 +42,11 @@ data class TLSOptions(
 
     fun createSocketFactory(): ServerSocketFactory {
         return sslContext.serverSocketFactory
+    }
+}
+
+data class TransferOptions(val shouldAlwaysCompress: Boolean = false) {
+    companion object {
+        val DEFAULT = TransferOptions()
     }
 }
