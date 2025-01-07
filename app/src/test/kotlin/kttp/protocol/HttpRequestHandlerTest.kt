@@ -256,7 +256,7 @@ class HttpRequestHandlerTest {
             outputStream.toByteArray()
         }
         val remoteRequest = PostRequest.from( "http://localhost:8080",
-            HttpHeaders().withTransferEncoding(TransferEncoding.DEFLATE),
+            HttpHeaders().withContentEncoding(ContentEncoding.DEFLATE),
             HttpBody.fromBytes(compressedBody))
 
         val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
@@ -273,7 +273,7 @@ class HttpRequestHandlerTest {
 
         val compressed = gzipCompress(wikiString)
         val remoteRequest = PostRequest.from( "http://localhost:8080",
-            HttpHeaders().withTransferEncoding(TransferEncoding.GZIP),
+            HttpHeaders().withContentEncoding(ContentEncoding.GZIP),
             HttpBody.fromBytes(compressed))
 
         val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
