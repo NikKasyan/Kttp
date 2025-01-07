@@ -2,9 +2,7 @@ package kttp.integration
 
 import kttp.http.HttpClient
 import kttp.http.HttpServer
-import kttp.http.protocol.HttpResponse
-import kttp.http.protocol.HttpStatus
-import kttp.http.protocol.HttpVersion
+import kttp.http.protocol.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -69,6 +67,22 @@ class HttpExchangeTest {
         assertEquals(HttpVersion.DEFAULT_VERSION, response.statusLine.httpVersion)
         assertTrue(response.headers.hasServer())
         assertTrue(response.headers.hasDate())
+    }
+
+    @Test
+    fun serverEncodesBodyWithGzip() {
+        server.onGet("/") {
+            respond(HttpResponse.ok(body = "Hello, World!", headers = HttpHeaders().withContentEncoding(ContentEncoding.GZIP)))
+        }
+
+        val response = client.get()
+
+        assertEquals(HttpStatus.OK, response.statusLine.status)
+        assertEquals(HttpVersion.DEFAULT_VERSION, response.statusLine.httpVersion)
+        assertTrue(response.headers.hasServer())
+        assertTrue(response.headers.hasDate())
+        assertEquals(ContentEncoding.GZIP, response.headers.contentEncoding)
+        assertEquals("Hello, World!", response.body.readAsString())
     }
 
 

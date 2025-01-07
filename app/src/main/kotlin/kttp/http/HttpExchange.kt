@@ -29,7 +29,7 @@ class HttpExchange(val request: HttpRequest,
 
     private fun writeBody(response: HttpResponse = this.defaultResponse) {
         writeHeaders(response)
-        io.writeFromStream(response.body)
+        io.writeFromStream(response.body.toEncodedBody(response.headers))
     }
 
     fun write(inputStream: InputStream) {
