@@ -4,8 +4,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import kttp.http.HttpClient
-import kttp.http.HttpServer
+import kttp.http.server.HttpServer
 import kttp.http.protocol.HttpStatus
+import kttp.http.server.onGet
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import kotlin.concurrent.thread

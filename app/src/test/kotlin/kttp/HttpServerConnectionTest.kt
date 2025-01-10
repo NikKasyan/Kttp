@@ -1,12 +1,11 @@
 package kttp
 
-import kttp.http.HttpServer
+import kttp.http.server.HttpServer
 import kttp.net.ClientConnection
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.net.ConnectException
-import java.net.InetAddress
 import java.net.Socket
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -16,11 +15,9 @@ import kotlin.concurrent.thread
 class HttpServerConnectionTest {
 
 
-    private lateinit var httpServer: HttpServer
-    private val defaultPort = 80
+    private var httpServer: HttpServer = HttpServer()
 
     init{
-        this.httpServer = HttpServer(defaultPort)
         thread {
             httpServer.start()
         }
@@ -85,6 +82,6 @@ class HttpServerConnectionTest {
 
 
     private fun createSocket(): Socket {
-        return Socket(httpServer.getHost(), defaultPort)
+        return Socket(httpServer.getHost(), 80)
     }
 }

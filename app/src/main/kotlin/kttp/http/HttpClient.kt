@@ -20,6 +20,7 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
         get() = baseURI.scheme == "https"
     private val socketFactory: SocketFactory
 
+
     companion object {
         fun get(requestUrl: String, httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
             return HttpClient(requestUrl).get(httpHeaders = httpHeaders)

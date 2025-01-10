@@ -21,10 +21,12 @@ Add testing for persistent connections
 - [X] Add SSL support
 - [ ] Add client certificate (verification) support
 - [X] Add support for kotlin coroutines
-- [ ] Add Websocket support
-- [ ] Add support for HTTP/2?
+- [ ] Add Websocket support (https://www.rfc-editor.org/rfc/rfc6455)
+- [ ] Add support for HTTP/2? (Websocket https://www.rfc-editor.org/rfc/rfc8441)
 - [ ] Add basic X.509 certificate to remove bouncy castle dependency
-
+- [ ] Add support for HTTP/3 (https://www.rfc-editor.org/rfc/rfc9000)
+- [ ] Add Missing content-endcodings (br, bzip2, zstd)
+- 
 # Not planned to be implemented soon
 
 compress or x-compress (Currently not feeling like implementing LZW with correct encoding) 

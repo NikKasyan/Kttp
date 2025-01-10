@@ -1,10 +1,11 @@
 package kttp.security
 
 import kttp.http.HttpClient
-import kttp.http.HttpServer
-import kttp.http.HttpServerOptions
-import kttp.http.TLSOptions
+import kttp.http.server.HttpServer
+import kttp.http.server.HttpServerOptions
+import kttp.http.server.TLSOptions
 import kttp.http.protocol.HttpStatus
+import kttp.http.server.onGet
 import org.junit.jupiter.api.Test
 import java.nio.file.Paths
 import kotlin.concurrent.thread

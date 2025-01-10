@@ -1,4 +1,4 @@
-package kttp.http
+package kttp.http.server
 
 import kttp.http.protocol.HttpHeaders
 import kttp.http.protocol.HttpResponse
@@ -10,13 +10,13 @@ import java.util.*
 
 
 val NOT_FOUND_HANDLER = {
-    HttpReqHandler("", EnumSet.allOf(Method::class.java)) {
+    ReqHandler("/**", EnumSet.allOf(Method::class.java)) {
         val notFound = "Not Found ${request.uri.path}"
-        respond(HttpResponse.notFound(body = notFound))
+        respond(notFound)
     }
 }
 
-fun HostFilesHandler(relativeHostFilePath: String, requestBase: String = "") = HttpReqHandler(sanitizeRequestBase(requestBase), Method.GET, hostFiles(relativeHostFilePath, requestBase))
+fun HostFilesHandler(relativeHostFilePath: String, requestBase: String = "") = ReqHandler(sanitizeRequestBase(requestBase), Method.GET, hostFiles(relativeHostFilePath, requestBase))
 
 private fun sanitizeRequestBase(requestBase: String): String {
     val requestPath = if (requestBase.isEmpty() || requestBase == "/") {
@@ -36,7 +36,7 @@ private fun sanitizeRequestBase(requestBase: String): String {
 }
 
 fun hostFiles(relativePath: String, requestBase: String = "") = hostFiles(Path.of(File(relativePath).absolutePath), requestBase)
-fun hostFiles(path: Path, requestBase: String = ""): Handler {
+fun hostFiles(path: Path, requestBase: String = ""): OnHttpRequest {
     return Handler@{
         val requestedPath = request.uri.path.removePrefix(requestBase)
         val file = resolvePath(path, requestedPath).toFile()

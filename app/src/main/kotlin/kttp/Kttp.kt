@@ -1,3 +1,6 @@
 package kttp
 
 
+object Kttp {
+
+}

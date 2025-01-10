@@ -1,4 +1,4 @@
-package kttp.http
+package kttp.http.server
 
 import kttp.http.protocol.*
 import kttp.io.EndOfStream
@@ -16,16 +16,25 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 
 
-typealias Handler = HttpExchange.() -> Unit
+typealias OnReqHandler = HttpExchange.() -> Unit
 
 //Todo: Find a better name for this class
-data class HttpReqHandler(val path: String, val methods: EnumSet<Method>, val handler: Handler) {
-    constructor(path: String, method: Method, handler: Handler) : this(path, EnumSet.of(method), handler)
-    constructor(path: String, methods: List<Method>, handler: Handler) : this(
+data class ReqHandler(private var _path: String, val methods: EnumSet<Method>, val handle: OnReqHandler) {
+    constructor(path: String, method: Method, httpHandler: OnReqHandler) : this(path, EnumSet.of(method), httpHandler)
+    constructor(path: String, methods: List<Method>, httpHandler: OnReqHandler) : this(
         path,
         EnumSet.noneOf(Method::class.java).also { it.addAll(methods) },
-        handler
+        httpHandler
     )
+
+    init {
+        if (_path.isEmpty())
+            throw IllegalArgumentException("Path cannot be empty")
+        _path = _path.replace("//", "/").replace(Regex("\\*{2,}"), "**")
+    }
+
+    val path: String
+        get() = _path
 }
 
 class HttpServer(
@@ -63,68 +72,21 @@ class HttpServer(
     val activeConnections: Int
         get() = numberOfConnections.get()
 
-    private val handlerRegistry = HttpContextRegistry(ArrayList())
+    private val httpHandlers = ReqHandlers()
 
     private val connectionOptions = ConnectionOptions(httpServerOptions.socketTimeout)
 
-    fun onGet(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.GET), handler))
-    }
-
-    fun onPost(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.POST), handler))
-    }
-
-    fun onPut(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.PUT), handler))
-    }
-
-    fun onDelete(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.DELETE), handler))
-    }
-
-    fun onPatch(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.PATCH), handler))
-    }
-
-    fun onHead(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.HEAD), handler))
-    }
-
-    fun onConnect(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.CONNECT), handler))
-    }
-
-    fun onOptions(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.OPTIONS), handler))
-    }
-
-    fun onTrace(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.of(Method.TRACE), handler))
-    }
-
-    fun on(method: Method, path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, method, handler))
-    }
-
-    fun on(methods: List<Method>, path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, methods, handler))
-    }
-
-    fun on(methods: EnumSet<Method>, path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, methods, handler))
-    }
-
-    fun on(path: String, handler: Handler) {
-        addRequestHandler(HttpReqHandler(path, EnumSet.allOf(Method::class.java), handler))
+    fun addHttpReqHandler(httpReqHandler: ReqHandler): HttpServer {
+        httpHandlers.addHandler(httpReqHandler)
+        return this
     }
 
     fun removeHandler(path: String) {
-        handlerRegistry.removeHandler(path)
+        httpHandlers.removeHandler(path)
     }
 
     fun clearHandlers() {
-        handlerRegistry.clear()
+        httpHandlers.clear()
     }
 
     fun start() {
@@ -145,7 +107,7 @@ class HttpServer(
     }
 
     fun waitUntilStarted() {
-        if(hasStarted)
+        if (hasStarted)
             return
         start.acquire()
     }
@@ -183,7 +145,9 @@ class HttpServer(
             while (connectionOpen) {
                 //Todo: Handle any errors that might occur during requests
                 val httpRequest = HttpRequestHandler().handleRequest(clientConnection.io)
+
                 connectionOpen = !httpRequest.headers.hasConnection(Connection.CLOSE)
+
                 respond(httpRequest, clientConnection)
 
             }
@@ -198,7 +162,6 @@ class HttpServer(
     }
 
     private fun closeConnection(clientConnection: ClientConnection) {
-
         log.info { "Closed connection." }
         clientConnection.close()
         numberOfConnections.decrementAndGet()
@@ -237,7 +200,8 @@ class HttpServer(
         is HeaderStartsWithWhiteSpace,
         is InvalidHeaderStructure,
         is MissingHostHeader,
-        is TooManyHostHeaders ->
+        is TooManyHostHeaders,
+        is UpgradeException ->
             HttpResponse.badRequest(body = exception.message ?: "No message")
 
         else ->
@@ -252,21 +216,15 @@ class HttpServer(
         //   (HTTP Version Not Supported) response if it wishes, for any reason,
         //   to refuse service of the client's major protocol version.
         // https://www.rfc-editor.org/rfc/rfc7230#page-14
-        val httpResponse = HttpResponse.ok(createDefaultResponseHeaders(httpRequest))
-        val httpExchange = HttpExchange(httpRequest, httpResponse, clientConnection.io)
-
-        httpExchange.use {
-            try {
-                val handler = handlerRegistry.getHandlerForRequest(httpRequest)
-                handler.handler(httpExchange)
-            } catch (e: Exception) {
-                respondWithError(clientConnection, e)
-            }
+        val httpRequestHandler = httpHandlers.getHandlerForRequest(httpRequest) ?: NOT_FOUND_HANDLER()
+        val httpExchange = HttpExchange(httpRequest, createDefaultResponseHeaders(httpRequest), clientConnection.io)
+        try {
+            httpRequestHandler.handle(httpExchange)
+        } catch (e: Exception) {
+            respondWithError(clientConnection, e)
         }
-    }
 
-    fun addRequestHandler(httpReqHandler: HttpReqHandler) {
-        handlerRegistry.addHandler(httpReqHandler)
+
     }
 
 
@@ -283,7 +241,7 @@ class HttpServer(
 
     }
 
-    private fun createDefaultResponseHeaders(
+    fun createDefaultResponseHeaders(
         request: HttpRequest? = null,
         headers: HttpHeaders = HttpHeaders()
     ): HttpHeaders {
@@ -314,9 +272,9 @@ class HttpServer(
 
 }
 
-class HttpContextRegistry(private val httpRequestHandlers: MutableList<HttpReqHandler> = mutableListOf()) {
+class ReqHandlers(private val httpRequestHandlers: MutableList<ReqHandler> = mutableListOf()) {
 
-    fun addHandler(httpReqHandler: HttpReqHandler) {
+    fun addHandler(httpReqHandler: ReqHandler) {
         httpRequestHandlers.add(httpReqHandler)
     }
 
@@ -324,22 +282,21 @@ class HttpContextRegistry(private val httpRequestHandlers: MutableList<HttpReqHa
         httpRequestHandlers.removeIf { it.path == path }
     }
 
-    fun getHandlerForRequest(httpRequest: HttpRequest): HttpReqHandler {
+    fun getHandlerForRequest(httpRequest: HttpRequest): ReqHandler? {
         return httpRequestHandlers.find {
             it.path == httpRequest.uri.path && it.methods.contains(httpRequest.method)
         } ?: getHandlerByPath(httpRequest.uri.path)
-        ?: NOT_FOUND_HANDLER()
 
     }
 
-    fun getHandlerByPath(path: String): HttpReqHandler? {
+    fun getHandlerByPath(path: String): ReqHandler? {
         return httpRequestHandlers.find {
             it.path == path
         } ?: getHandlerForFuzzyPath(path)
     }
 
-    private fun getHandlerForFuzzyPath(path: String): HttpReqHandler? {
-        val list = mutableListOf<Pair<HttpReqHandler, Int>>()
+    private fun getHandlerForFuzzyPath(path: String): ReqHandler? {
+        val list = mutableListOf<Pair<ReqHandler, Int>>()
         for (handler in httpRequestHandlers) {
             if (handler.path.contains("*")) {
                 val handlerPath = handler.path.split("/").filter { it.isNotEmpty() }
@@ -384,3 +341,6 @@ class HttpContextRegistry(private val httpRequestHandlers: MutableList<HttpReqHa
     }
 
 }
+
+
+open class UpgradeException : RuntimeException("Upgrade not supported")

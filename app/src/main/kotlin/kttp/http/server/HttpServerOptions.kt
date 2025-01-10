@@ -1,4 +1,4 @@
-package kttp.http
+package kttp.http.server
 
 import kttp.http.protocol.HttpVersion
 import kttp.security.SSL
@@ -18,7 +18,7 @@ data class HttpServerOptions(
     val socketFactory: ServerSocketFactory = if(secure) tlsOptions.createSocketFactory() else ServerSocketFactory.getDefault(),
     val transferOptions: TransferOptions = TransferOptions.DEFAULT,
 
-) {
+    ) {
     companion object {
         val DEFAULT = HttpServerOptions()
     }

@@ -1,7 +1,6 @@
-package kttp.http
+package kttp.http.server
 
 import kttp.http.protocol.*
-import kttp.io.EndOfStream
 import kttp.log.Logger
 import kttp.io.IOStream
 import kttp.io.LineTooLongException

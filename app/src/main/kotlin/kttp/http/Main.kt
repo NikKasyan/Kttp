@@ -1,19 +1,24 @@
 package kttp.http
 
-import kttp.http.protocol.HttpHeaders
-import kttp.security.SSL
-import java.nio.file.Paths
+import kotlinx.coroutines.delay
+import kttp.http.protocol.HttpResponse
+import kttp.http.server.*
+import kttp.http.websocket.upgradeConnectionToWebsocket
 
 
 object Main {
     @JvmStatic
     fun main(args: Array<String>) {
-        val sslContext = SSL.createSSLContextFromCertificateAndKey("test.crt", "test.key")
-        val httpServer = HttpServer(HttpServerOptions(secure = true, tlsOptions = TLSOptions(sslContext = sslContext)))
-        httpServer.addRequestHandler(HostFilesHandler(".", "/test"))
-        httpServer.start()
+        HttpServer()
+            .onGet("/test") {
+                respond(HttpResponse.ok(body = "Test"))
+            }.onGet("/ws") {
+                upgradeConnectionToWebsocket(this)
+            }
+            .start()
     }
 }
+
 
 object Client {
     @JvmStatic
@@ -24,4 +29,8 @@ object Client {
         println(response.body.readAsString())
 
     }
+}
+
+suspend fun test() {
+    delay(1000)
 }

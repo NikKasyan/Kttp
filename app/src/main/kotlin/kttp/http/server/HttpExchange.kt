@@ -1,24 +1,27 @@
-package kttp.http
+package kttp.http.server
 
+import kttp.http.protocol.HttpHeaders
 import kttp.http.protocol.HttpRequest
 import kttp.http.protocol.HttpResponse
 import kttp.io.IOStream
 import java.io.InputStream
 
-class HttpExchange(val request: HttpRequest,
-                   private val defaultResponse: HttpResponse,
-                   private val io: IOStream): AutoCloseable {
+class HttpExchange(
+    val request: HttpRequest,
+    private val defaultHeaders: HttpHeaders = HttpHeaders(),
+    val io: IOStream
+) : AutoCloseable {
 
     private var headerWritten = false
     private var closed = false
 
-    private fun writeHeaders(response: HttpResponse = this.defaultResponse) {
+    private fun writeHeaders(response: HttpResponse = HttpResponse.ok(defaultHeaders)) {
         if (headerWritten)
             return
-        if(closed)
+        if (closed)
             return
 
-        response.headers.addMissingHeaders(defaultResponse.headers)
+        response.headers.addMissingHeaders(defaultHeaders)
 
         io.write(response.statusLine.toString())
         io.write("\r\n")
@@ -27,7 +30,7 @@ class HttpExchange(val request: HttpRequest,
         headerWritten = true
     }
 
-    private fun writeBody(response: HttpResponse = this.defaultResponse) {
+    private fun writeBody(response: HttpResponse = HttpResponse.ok(defaultHeaders)) {
         writeHeaders(response)
         io.writeFromStream(response.body.toEncodedBody(response.headers))
     }
@@ -53,21 +56,21 @@ class HttpExchange(val request: HttpRequest,
     }
 
     fun respond(response: HttpResponse) {
-        if(closed)
+        if (closed)
             return
         writeBody(response)
+        response.close()
 
     }
 
     fun respond(body: String) {
-        respond(HttpResponse.ok(body = body, headers = defaultResponse.headers))
+        respond(HttpResponse.ok(body = body))
     }
 
     override fun close() {
-        if(closed)
+        if (closed)
             return
         writeBody()
-        defaultResponse.close()
     }
 
 }

@@ -1,7 +1,7 @@
 package kttp.protocol
 
-import kttp.http.HttpRequestHandler
-import kttp.http.MissingHostHeader
+import kttp.http.server.HttpRequestHandler
+import kttp.http.server.MissingHostHeader
 import kttp.http.protocol.*
 import kttp.http.protocol.transfer.ChunkExtensionTooLong
 import kttp.http.protocol.transfer.chunkString

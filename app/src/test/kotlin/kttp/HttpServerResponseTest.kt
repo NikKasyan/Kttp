@@ -1,6 +1,6 @@
 package kttp
 
-import kttp.http.HttpServer
+import kttp.http.server.HttpServer
 import kttp.http.protocol.HttpStatus
 import kttp.http.protocol.HttpVersion
 import kttp.http.protocol.StatusLine

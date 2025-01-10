@@ -9,6 +9,7 @@ import java.nio.charset.Charset
 
 //Todo: Have to rewrite using bytes instead of strings and not using UTF-8 as standard charset
 // https://www.rfc-editor.org/rfc/rfc7230#page-19
+// Todo: Might need to add opt-out from automatic flushing
 class IOStream(private val inputStream: InputStream,
                private val outputStream: OutputStream,
                private val charset: Charset = Charsets.US_ASCII,

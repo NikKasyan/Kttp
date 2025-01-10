@@ -1,6 +1,6 @@
 package kttp.http.protocol
 
-import kttp.http.MissingHostHeader
+import kttp.http.server.MissingHostHeader
 import kttp.io.CombinedInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream

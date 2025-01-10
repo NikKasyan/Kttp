@@ -1,8 +1,9 @@
 package kttp.integration
 
 import kttp.http.HttpClient
-import kttp.http.HttpServer
+import kttp.http.server.HttpServer
 import kttp.http.protocol.*
+import kttp.http.server.onGet
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue

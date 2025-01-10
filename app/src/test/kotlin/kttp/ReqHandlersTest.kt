@@ -1,7 +1,7 @@
 package kttp
 
-import kttp.http.HttpContextRegistry
-import kttp.http.HttpReqHandler
+import kttp.http.server.ReqHandlers
+import kttp.http.server.ReqHandler
 import kttp.http.protocol.Method
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -9,8 +9,8 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-class HttpContextRegistryTest {
-    private val httpContextRegistry = HttpContextRegistry()
+class ReqHandlersTest {
+    private val httpContextRegistry = ReqHandlers()
 
     @Test
     fun `fuzzy paths work`() {
@@ -54,8 +54,8 @@ class HttpContextRegistryTest {
     }
 }
 
-private fun handler(path: String): HttpReqHandler {
-    return HttpReqHandler(path, EnumSet.allOf(Method::class.java)){
+private fun handler(path: String): ReqHandler {
+    return ReqHandler(path, EnumSet.allOf(Method::class.java)){
         respond(path)
     }
 }

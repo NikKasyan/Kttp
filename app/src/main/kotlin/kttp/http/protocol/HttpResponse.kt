@@ -41,7 +41,7 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
             return HttpResponse(statusLine, headers, body)
         }
 
-        fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders = HttpHeaders(), body: String = ""): HttpResponse {
+        fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders = HttpHeaders(), body: String): HttpResponse {
             val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
             if (!headers.hasContentLength() && !headers.hasContentEncoding())
                 headers.withContentLength(body.length.toLong())

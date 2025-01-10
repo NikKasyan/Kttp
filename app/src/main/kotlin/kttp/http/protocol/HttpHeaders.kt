@@ -21,6 +21,12 @@ object CommonHeaders {
     const val SERVER = "Server"
     const val CONTENT_TYPE = "Content-Type"
     const val ACCEPT_ENCODING = "Accept-Encoding"
+    const val UPGRADE = "Upgrade"
+    // Websocket
+    const val SEC_WEBSOCKET_KEY = "Sec-WebSocket-Key"
+    const val SEC_WEBSOCKET_VERSION = "Sec-WebSocket-Version"
+    const val SEC_WEBSOCKET_PROTOCOL = "Sec-WebSocket-Protocol"
+    const val SEC_WEBSOCKET_ACCEPT = "Sec-WebSocket-Accept"
     //Todo: Add missing Common Headers
     // Trailer: https://www.rfc-editor.org/rfc/rfc9110#name-trailer
 
@@ -718,6 +724,134 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     fun contentEncodingAsString(): String {
         return headers[CommonHeaders.CONTENT_ENCODING]!!
     }
+
+    var upgrade: String?
+        get() = if (hasUpgrade()) upgrade() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.UPGRADE)
+            else
+                withUpgrade(value)
+        }
+
+    fun withUpgrade(upgrade: String): HttpHeaders {
+        headers[CommonHeaders.UPGRADE] = upgrade
+        return this
+    }
+
+    fun withWebsocketUpgrade(): HttpHeaders {
+        return withUpgrade("websocket")
+    }
+
+    fun hasWebsocketUpgrade(): Boolean {
+        return hasUpgrade() && upgrade() == "websocket"
+    }
+
+    fun hasUpgrade(): Boolean {
+        return headers.containsKey(CommonHeaders.UPGRADE)
+    }
+
+    fun upgrade(): String {
+        return headers[CommonHeaders.UPGRADE]!!
+    }
+
+    var webSocketKey: String?
+        get() = if (hasWebSocketKey()) webSocketKey() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.SEC_WEBSOCKET_KEY)
+            else
+                withWebSocketKey(value)
+        }
+
+    fun withWebSocketKey(secWebSocketKey: String): HttpHeaders {
+        headers[CommonHeaders.SEC_WEBSOCKET_KEY] = secWebSocketKey
+        return this
+    }
+
+    fun hasWebSocketKey(): Boolean {
+        return headers.containsKey(CommonHeaders.SEC_WEBSOCKET_KEY)
+    }
+
+    fun webSocketKey(): String {
+        return headers[CommonHeaders.SEC_WEBSOCKET_KEY]!!
+    }
+
+    var webSocketVersion: String?
+        get() = if (hasWebSocketVersion()) webSocketVersion() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.SEC_WEBSOCKET_VERSION)
+            else
+                withWebSocketVersion(value)
+        }
+
+    fun withWebSocketVersion(secWebSocketVersion: String): HttpHeaders {
+        headers[CommonHeaders.SEC_WEBSOCKET_VERSION] = secWebSocketVersion
+        return this
+    }
+
+    fun hasWebSocketVersion(): Boolean {
+        return headers.containsKey(CommonHeaders.SEC_WEBSOCKET_VERSION)
+    }
+
+    fun webSocketVersion(): String {
+        return headers[CommonHeaders.SEC_WEBSOCKET_VERSION]!!
+    }
+
+    var webSocketProtocol: String?
+        get() = if (hasWebSocketProtocol()) webSocketProtocol() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.SEC_WEBSOCKET_PROTOCOL)
+            else
+                withWebSocketProtocol(value)
+        }
+
+    fun withWebSocketProtocol(vararg  secWebSocketProtocol: String): HttpHeaders {
+        return withWebSocketProtocol(secWebSocketProtocol.joinToString(", "))
+    }
+
+    fun withWebSocketProtocol(secWebSocketProtocol: String): HttpHeaders {
+        headers[CommonHeaders.SEC_WEBSOCKET_PROTOCOL] = secWebSocketProtocol
+        return this
+    }
+
+    fun hasWebSocketProtocol(): Boolean {
+        return headers.containsKey(CommonHeaders.SEC_WEBSOCKET_PROTOCOL)
+    }
+
+    fun webSocketProtocol(): String {
+        return headers[CommonHeaders.SEC_WEBSOCKET_PROTOCOL]!!
+    }
+
+    fun webSocketProtocolAsList(): List<String> {
+        return webSocketProtocol().split(",").map { it.trim() }
+    }
+
+    var webSocketAccept: String?
+        get() = if (hasWebSocketAccept()) webSocketAccept() else null
+        set(value) {
+            if (value == null)
+                headers.remove(CommonHeaders.SEC_WEBSOCKET_ACCEPT)
+            else
+                withWebSocketAccept(value)
+        }
+
+    fun withWebSocketAccept(secWebSocketAccept: String): HttpHeaders {
+        headers[CommonHeaders.SEC_WEBSOCKET_ACCEPT] = secWebSocketAccept
+        return this
+    }
+
+    fun hasWebSocketAccept(): Boolean {
+        return headers.containsKey(CommonHeaders.SEC_WEBSOCKET_ACCEPT)
+    }
+
+    fun webSocketAccept(): String {
+        return headers[CommonHeaders.SEC_WEBSOCKET_ACCEPT]!!
+    }
+
+
 
 
     fun toList(): List<HttpHeader> {
