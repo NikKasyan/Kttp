@@ -14,7 +14,9 @@ Trying to implement all RFC standards for HTTP/1.1
 3. "HTTP/1.1" https://www.rfc-editor.org/rfc/rfc9112
 
 # Current Progress
-https://www.rfc-editor.org/rfc/rfc9112#section-9.3.1
+Websocket https://www.rfc-editor.org/rfc/rfc6455.html#page-20
+
+Http https://www.rfc-editor.org/rfc/rfc9112#section-9.3.1
 Add testing for persistent connections
 
 # Todo

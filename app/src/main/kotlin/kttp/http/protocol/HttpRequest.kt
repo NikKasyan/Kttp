@@ -51,6 +51,19 @@ class HttpRequest(
             val body = HttpBody(inputStream?: InputStream.nullInputStream(), contentLength)
             return from(method, URI.create(uriString), httpHeaders, body)
         }
+
+        fun from(method: Method, uriString: String, httpHeaders: HttpHeaders = HttpHeaders(), body: String = ""): HttpRequest {
+            val contentLength = httpHeaders.contentLength
+            val requestBody = HttpBody(body.byteInputStream(), contentLength)
+            return from(method, URI.create(uriString), httpHeaders, requestBody)
+        }
+
+        fun get(uri: URI, httpHeaders: HttpHeaders = HttpHeaders()): HttpRequest {
+            return from(Method.GET, uri, httpHeaders)
+        }
+        fun get(uriString: String, httpHeaders: HttpHeaders = HttpHeaders()): HttpRequest {
+            return from(Method.GET, URI.create(uriString), httpHeaders)
+        }
     }
 
     private fun combineToRequestUri(host: String, requestTarget: URI): URI {

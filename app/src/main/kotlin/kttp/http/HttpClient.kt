@@ -1,6 +1,7 @@
 package kttp.http
 
 import kttp.http.protocol.*
+import kttp.http.server.MissingHostHeader
 import kttp.io.IOStream
 import kttp.log.Logger
 import java.net.Socket
@@ -44,17 +45,17 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
                 return URI("http://${uri}")
         return uri
     }
+    fun connect(): HttpClientConnection {
+        return HttpClientConnection(createSocket())
+    }
 
     fun get(requestUrl: String = "/", httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
         return request(Method.GET, requestUrl, httpHeaders)
     }
 
+
     fun request(method: Method, requestUrl: String, httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
-        val socket = socketFactory.createSocket(baseURI.host, getPort())
-
-        doHandshake(socket)
-
-        val io = IOStream(socket.getInputStream(), socket.getOutputStream())
+        val connection = connect()
 
         if (!httpHeaders.hasHost())
             httpHeaders.withHost(baseURI)
@@ -62,23 +63,11 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
             httpHeaders.removeContentLength()
 
         val request = HttpRequest.from(method, URI(requestUrl), httpHeaders)
+        return connection.request(request)
+    }
 
-        io.writeFromStream(request.asStream())
-
-
-        val statusLineString = io.readLine()
-        val statusLine = StatusLine(statusLineString)
-
-        log.debug { "StatusLine: $statusLine" }
-        val headers = readHeaders(io)
-
-        log.debug { "Headers: $headers" }
-
-        val body = HttpBody.withDecoding(io, headers)
-
-        log.debug { "Body: $body" }
-
-        return HttpResponse(statusLine, headers, body)
+    private fun createSocket(): Socket {
+        return socketFactory.createSocket(baseURI.host, getPort()).also { doHandshake(it) }
     }
 
     private fun doHandshake(socket: Socket) {
@@ -96,16 +85,6 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
         }
     }
 
-    private fun readHeaders(input: IOStream): HttpHeaders {
-        val headers = HttpHeaders()
-        while (true) {
-            val line = input.readLine()
-            if (line.isEmpty())
-                break
-            headers.add(line)
-        }
-        return headers
-    }
 
     private fun getPort(): Int {
         if (baseURI.port != -1)
@@ -120,6 +99,41 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
 }
 
+
+class HttpClientConnection(private val socket: Socket): AutoCloseable {
+    val io = IOStream(socket.getInputStream(), socket.getOutputStream())
+
+    fun request(request: HttpRequest): HttpResponse {
+        if(!request.headers.hasHost())
+            throw MissingHostHeader()
+        io.writeFromStream(request.asStream())
+        return readResponse()
+    }
+
+    fun readResponse(): HttpResponse {
+        val statusLineString = io.readLine()
+        val statusLine = StatusLine(statusLineString)
+        val headers = readHeaders(io)
+        val body = HttpBody.withDecoding(io, headers)
+        return HttpResponse(statusLine, headers, body)
+    }
+
+
+
+    override fun close() {
+        try{
+            socket.close()
+        } catch (e: Exception){
+            //Ignore
+        }
+        try {
+            io.close()
+        } catch (e: Exception){
+            //Ignore
+        }
+    }
+
+}
 private fun createDefaultHeaders() = HttpHeaders {
     withUserAgent("Kttp/1.0")
     withAcceptEncoding(ContentEncoding.GZIP, ContentEncoding.DEFLATE)

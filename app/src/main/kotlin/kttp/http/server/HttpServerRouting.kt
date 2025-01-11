@@ -1,6 +1,5 @@
 package kttp.http.server
 
-import kttp.http.protocol.HttpResponse
 import kttp.http.protocol.Method
 import java.util.EnumSet
 
@@ -41,6 +40,7 @@ fun HttpServer.onConnect(path: String, onHttpRequest: OnHttpRequest): HttpServer
 fun HttpServer.onTrace(path: String, onHttpRequest: OnHttpRequest): HttpServer {
     return addHttpReqHandler(path, EnumSet.of(Method.TRACE), onHttpRequest)
 }
+
 fun HttpServer.on(method: Method, path: String, onHttpRequest: OnHttpRequest): HttpServer {
     return addHttpReqHandler(path, EnumSet.allOf(Method::class.java), onHttpRequest)
 }

@@ -1,6 +1,7 @@
 package kttp.http.server
 
 import kttp.http.protocol.*
+import kttp.http.websocket.InvalidUpgrade
 import kttp.io.EndOfStream
 import kttp.log.Logger
 import kttp.net.ClientConnection
@@ -54,6 +55,9 @@ class HttpServer(
         )
     )
 
+    constructor(secure: Boolean) : this(HttpServerOptions(secure = secure))
+    constructor(port: Int, secure: Boolean) : this(HttpServerOptions(port = port, secure = secure))
+
 
     private lateinit var serverSocket: ServerSocket
 
@@ -99,9 +103,14 @@ class HttpServer(
         log.info { "Starting server on $hostName:$port" }
         log.info { getBaseUri() }
 
-        val socketFactory = httpServerOptions.socketFactory
-        this.serverSocket = socketFactory.createServerSocket()
-        serverSocket.bind(InetSocketAddress(hostName, port))
+        try {
+            val socketFactory = httpServerOptions.socketFactory
+            this.serverSocket = socketFactory.createServerSocket()
+            serverSocket.bind(InetSocketAddress(hostName, port))
+        } catch (e: Exception) {
+            start.release(start.queueLength)
+            throw e
+        }
         acceptNewSockets()
 
     }
@@ -110,6 +119,8 @@ class HttpServer(
         if (hasStarted)
             return
         start.acquire()
+        if(!hasStarted)
+            throw IllegalStateException("Server did not start")
     }
 
     private fun acceptNewSockets() {
@@ -201,7 +212,7 @@ class HttpServer(
         is InvalidHeaderStructure,
         is MissingHostHeader,
         is TooManyHostHeaders,
-        is UpgradeException ->
+        is InvalidUpgrade ->
             HttpResponse.badRequest(body = exception.message ?: "No message")
 
         else ->
@@ -342,5 +353,3 @@ class ReqHandlers(private val httpRequestHandlers: MutableList<ReqHandler> = mut
 
 }
 
-
-open class UpgradeException : RuntimeException("Upgrade not supported")

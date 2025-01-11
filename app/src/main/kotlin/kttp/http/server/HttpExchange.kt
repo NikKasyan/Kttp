@@ -14,6 +14,7 @@ class HttpExchange(
 
     private var headerWritten = false
     private var closed = false
+    var response: HttpResponse = HttpResponse.ok(defaultHeaders)
 
     private fun writeHeaders(response: HttpResponse = HttpResponse.ok(defaultHeaders)) {
         if (headerWritten)

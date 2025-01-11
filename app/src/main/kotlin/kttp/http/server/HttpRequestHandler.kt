@@ -6,8 +6,6 @@ import kttp.io.IOStream
 import kttp.io.LineTooLongException
 
 
-private val startsWithWhiteSpace = Regex("^\\s+")
-
 private val log: Logger = Logger(HttpRequestHandler::class.java)
 
 class HttpRequestHandler {
@@ -18,7 +16,8 @@ class HttpRequestHandler {
 
         val headers = readHeaders(io)
 
-        checkHeaders(headers)
+        if (!headers.hasHost())
+            throw MissingHostHeader()
 
         val body = readBody(io, requestLine, headers)
 
@@ -47,42 +46,6 @@ class HttpRequestHandler {
         return requestLine
     }
 
-    private fun checkHeaders(headers: HttpHeaders) {
-        if (!headers.hasHost())
-            throw MissingHostHeader()
-        // https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
-        if(headers.hasContentLength() && headers.hasTransferEncoding())
-            throw InvalidHeaderStructure("Cannot have both Content-Length and Transfer-Encoding")
-        if(headers.hasTransferEncoding()
-            && headers.transferEncodings().contains(TransferEncoding.CHUNKED)
-            && headers.transferEncodings().last() != TransferEncoding.CHUNKED)
-            throw InvalidHeaderStructure("Transfer-Encoding must end with chunked if present")
-        if(headers.hasContentLength() && headers.contentLengthLong() < 0)
-            throw InvalidHeaderStructure("Content-Length must be a number")
-    }
-
-    private fun readHeaders(io: IOStream): HttpHeaders {
-        val headers = HttpHeaders()
-
-        var isFirstLine = true
-        while (true) {
-            val header = io.readLine()
-            if (header.isEmpty())
-                break
-            try {
-                headers.add(header)
-                isFirstLine = false
-            } catch (e: InvalidHeaderName) {
-                //Ignore headers with invalid Header Name
-                //Except if it is the first one
-                // https://www.rfc-editor.org/rfc/rfc9112#section-2.2-8
-                if (header.matches(startsWithWhiteSpace) && isFirstLine)
-                    throw HeaderStartsWithWhiteSpace()
-            }
-        }
-        log.debug { "Headers: $headers" }
-        return headers
-    }
 
     private fun readBody(io: IOStream, requestLine: RequestLine, headers: HttpHeaders): HttpBody {
 

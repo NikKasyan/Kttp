@@ -1,9 +1,9 @@
 package kttp.http
 
-import kotlinx.coroutines.delay
 import kttp.http.protocol.HttpResponse
-import kttp.http.server.*
-import kttp.http.websocket.upgradeConnectionToWebsocket
+import kttp.http.server.HttpServer
+import kttp.http.server.onGet
+import kttp.http.websocket.WebsocketConnectionUpgrade
 
 
 object Main {
@@ -13,7 +13,7 @@ object Main {
             .onGet("/test") {
                 respond(HttpResponse.ok(body = "Test"))
             }.onGet("/ws") {
-                upgradeConnectionToWebsocket(this)
+                respond(WebsocketConnectionUpgrade.createUpgradeResponse(request))
             }
             .start()
     }
@@ -29,8 +29,4 @@ object Client {
         println(response.body.readAsString())
 
     }
-}
-
-suspend fun test() {
-    delay(1000)
 }

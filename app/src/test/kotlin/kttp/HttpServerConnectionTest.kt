@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
 class HttpServerConnectionTest {
 
 
-    private var httpServer: HttpServer = HttpServer()
+    private var httpServer: HttpServer = HttpServer(port=8080)
 
     init{
         thread {
@@ -82,6 +82,9 @@ class HttpServerConnectionTest {
 
 
     private fun createSocket(): Socket {
+        val host = httpServer.getHost()
+        if(host.contains(":"))
+            return Socket(host.substringBefore(":"), host.substringAfter(":").toInt())
         return Socket(httpServer.getHost(), 80)
     }
 }

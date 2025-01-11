@@ -1,5 +1,7 @@
 package kttp.http.protocol
 
+import kttp.http.server.MissingHostHeader
+import kttp.io.IOStream
 import java.net.URI
 import java.text.DateFormat
 import java.text.ParseException
@@ -851,9 +853,6 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return headers[CommonHeaders.SEC_WEBSOCKET_ACCEPT]!!
     }
 
-
-
-
     fun toList(): List<HttpHeader> {
         return headers.toList().map { HttpHeader(it) }
     }
@@ -889,6 +888,9 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
 private val tokenRegex = Regex("[A-Za-z0-9!#$%&'*+\\-.^_`|~]+")
 
 private val endsWithWhiteSpace = Regex("\\s$")
+
+private val startsWithWhiteSpace = Regex("^\\s+")
+
 
 private fun checkTransferEncoding(transferEncoding: List<TransferEncoding>) {
     if (transferEncoding.contains(TransferEncoding.IDENTITY) && transferEncoding.size > 1)
@@ -958,6 +960,42 @@ class HttpHeader {
     }
 
 }
+
+private fun checkHeaders(headers: HttpHeaders) {
+    // https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
+    if(headers.hasContentLength() && headers.hasTransferEncoding())
+        throw InvalidHeaderStructure("Cannot have both Content-Length and Transfer-Encoding")
+    if(headers.hasTransferEncoding()
+        && headers.transferEncodings().contains(TransferEncoding.CHUNKED)
+        && headers.transferEncodings().last() != TransferEncoding.CHUNKED)
+        throw InvalidHeaderStructure("Transfer-Encoding must end with chunked if present")
+    if(headers.hasContentLength() && headers.contentLengthLong() < 0)
+        throw InvalidHeaderStructure("Content-Length must be a number")
+}
+
+fun readHeaders(io: IOStream): HttpHeaders {
+    val headers = HttpHeaders()
+
+    var isFirstLine = true
+    while (true) {
+        val header = io.readLine()
+        if (header.isEmpty())
+            break
+        try {
+            headers.add(header)
+            isFirstLine = false
+        } catch (e: InvalidHeaderName) {
+            //Ignore headers with invalid Header Name
+            //Except if it is the first one
+            // https://www.rfc-editor.org/rfc/rfc9112#section-2.2-8
+            if (header.matches(startsWithWhiteSpace) && isFirstLine)
+                throw HeaderStartsWithWhiteSpace()
+        }
+    }
+    checkHeaders(headers)
+    return headers
+}
+
 
 class InvalidHeaderStructure(header: String) :
     InvalidHttpRequest("Header must be of structure key: value. $header is not")
