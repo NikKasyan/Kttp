@@ -9,8 +9,10 @@ import kttp.http.protocol.HttpStatus
 import kttp.http.server.onGet
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 import kotlin.concurrent.thread
 
+@Timeout(10)
 class CoroutineExecutorServiceTest {
 
     private val executor = CoroutineExecutorService()
@@ -31,10 +33,9 @@ class CoroutineExecutorServiceTest {
     @Test
     fun test1000ConcurrentConnections() {
         runBlocking {
-            val client = HttpClient(server.getBaseUri())
             val jobs = List(1000) {
                 async {
-                    val response = client.get()
+                    val response = HttpClient.get(server.getBaseUri())
                     assertEquals(HttpStatus.OK, response.statusLine.status)
                     assertEquals("Hello World", response.body.readAsString())
                 }
