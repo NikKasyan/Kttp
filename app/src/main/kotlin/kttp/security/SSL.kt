@@ -20,9 +20,7 @@ import java.security.spec.PKCS8EncodedKeySpec
 import java.time.Duration
 import java.time.Instant
 import java.util.*
-import javax.net.ssl.KeyManagerFactory
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.*
 import kotlin.io.path.inputStream
 
 object SSL {
@@ -65,12 +63,18 @@ object SSL {
             }
 
         val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
-        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-
         keyManagerFactory.init(keyStore, keyStorePassword)
 
-        trustManagerFactory.init(keyStore)
-        sslContext.init(keyManagerFactory.keyManagers, trustManagerFactory.trustManagers, null)
+        val trustManagers = if(certificateOptions.validateCertificate) {
+            val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            trustManagerFactory.init(keyStore)
+            trustManagerFactory.trustManagers
+        } else {
+            arrayOf(AllTrustManager())
+        }
+
+
+        sslContext.init(keyManagerFactory.keyManagers, trustManagers, null)
         log.debug { "SSLContext initialized" }
         return sslContext
     }
@@ -150,6 +154,12 @@ object SSL {
             .setProvider(BouncyCastleProvider())
             .getCertificate(certificate)
     }
+    fun getSecureSocketFactory(verifyCertificates: Boolean): SSLSocketFactory {
+        val allTrustingContext = SSLContext.getInstance("TLS")
+        allTrustingContext.init(null, arrayOf(AllTrustManager()), SecureRandom())
+        return if (verifyCertificates) SSLContext.getDefault().socketFactory else allTrustingContext.socketFactory
+    }
+
 
 }
 
@@ -170,4 +180,17 @@ data class CertificateOptions(
     val dn: String? = "CN=localhost, OU=Test, O=Test, L=Test, ST=Test, C=Test",
     val certValidity: Duration = Duration.ofDays(365),
     val certSignatureAlgorithm: String = "SHA256withRSA",
+    val validateCertificate: Boolean = true
 )
+
+class AllTrustManager : X509TrustManager {
+    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+    }
+
+    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+    }
+
+    override fun getAcceptedIssuers(): Array<X509Certificate> {
+        return arrayOf()
+    }
+}

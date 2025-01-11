@@ -4,35 +4,35 @@ import kttp.http.protocol.*
 import kttp.http.server.MissingHostHeader
 import kttp.io.IOStream
 import kttp.log.Logger
+import kttp.security.SSL
 import java.net.Socket
 import java.net.URI
-import java.security.SecureRandom
 import javax.net.SocketFactory
-import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLSocket
-import javax.net.ssl.SSLSocketFactory
-import javax.net.ssl.X509TrustManager
 
+// Not Thread Safe
 class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
     private val baseURI: URI
     private val isSecure: Boolean
         get() = baseURI.scheme == "https"
     private val socketFactory: SocketFactory
-
+    private lateinit var connection: HttpClientConnection
 
     companion object {
         fun get(requestUrl: String, httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
-            return HttpClient(requestUrl).get(httpHeaders = httpHeaders)
+            return HttpClient(requestUrl).get(httpHeaders = httpHeaders.withConnection(Connection.CLOSE))
         }
     }
+
 
     private val log = Logger(javaClass)
 
     init {
+
         this.baseURI = fixMissingScheme(URI(baseURL))
-        this.socketFactory = if (isSecure) SSL.getSocketFactory(verifyCertificate) else SocketFactory.getDefault()
+        this.socketFactory = if (isSecure) SSL.getSecureSocketFactory(verifyCertificate) else SocketFactory.getDefault()
         if (!this.baseURI.isAbsolute)
             TODO("Throw real exception when baseURI is not absolute")
     }
@@ -45,9 +45,6 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
                 return URI("http://${uri}")
         return uri
     }
-    fun connect(): HttpClientConnection {
-        return HttpClientConnection(createSocket())
-    }
 
     fun get(requestUrl: String = "/", httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
         return request(Method.GET, requestUrl, httpHeaders)
@@ -55,15 +52,25 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
 
     fun request(method: Method, requestUrl: String, httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
-        val connection = connect()
+        val request = HttpRequest.from(method, URI(requestUrl), httpHeaders)
+        return request(request)
+    }
 
+    fun request(request: HttpRequest): HttpResponse {
+        ensureOpenConnection()
+
+        val httpHeaders = request.headers
         if (!httpHeaders.hasHost())
             httpHeaders.withHost(baseURI)
-        if (!method.allowsBody())
+        if (!request.method.allowsBody())
             httpHeaders.removeContentLength()
 
-        val request = HttpRequest.from(method, URI(requestUrl), httpHeaders)
         return connection.request(request)
+    }
+
+    private fun ensureOpenConnection() {
+        if (!::connection.isInitialized)
+            connection = HttpClientConnection(createSocket())
     }
 
     private fun createSocket(): Socket {
@@ -101,6 +108,11 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
 
 class HttpClientConnection(private val socket: Socket): AutoCloseable {
+
+    var isClosed = false
+        private set
+        get () = socket.isConnected || socket.isClosed || field
+
     val io = IOStream(socket.getInputStream(), socket.getOutputStream())
 
     fun request(request: HttpRequest): HttpResponse {
@@ -121,6 +133,9 @@ class HttpClientConnection(private val socket: Socket): AutoCloseable {
 
 
     override fun close() {
+        if (isClosed)
+            return
+        isClosed = true
         try{
             socket.close()
         } catch (e: Exception){
@@ -138,32 +153,7 @@ private fun createDefaultHeaders() = HttpHeaders {
     withUserAgent("Kttp/1.0")
     withAcceptEncoding(ContentEncoding.GZIP, ContentEncoding.DEFLATE)
     withAccept("*/*")
-    withConnection("close")
-}
-
-
-private object SSL {
-    private val insecureContext = SSLContext.getInstance("TLS")
-
-    init {
-        insecureContext.init(null, arrayOf(AllTrustManager()), SecureRandom())
-    }
-
-    fun getSocketFactory(verify: Boolean): SSLSocketFactory {
-        return if (verify) SSLContext.getDefault().socketFactory else insecureContext.socketFactory
-    }
-
-    class AllTrustManager : X509TrustManager {
-        override fun checkClientTrusted(chain: Array<out java.security.cert.X509Certificate>?, authType: String?) {
-        }
-
-        override fun checkServerTrusted(chain: Array<out java.security.cert.X509Certificate>?, authType: String?) {
-        }
-
-        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> {
-            return arrayOf()
-        }
-    }
+    withConnection(Connection.KEEP_ALIVE)
 }
 
 class CertificateException(cause: Throwable) : RuntimeException(
