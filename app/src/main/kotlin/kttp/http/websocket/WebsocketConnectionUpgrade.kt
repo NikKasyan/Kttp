@@ -1,10 +1,6 @@
 package kttp.http.websocket
 
-import kttp.http.HttpClient
-import kttp.http.HttpClientConnection
 import kttp.http.protocol.*
-import kttp.http.websocket.WebsocketConnectionUpgrade.checkIsValidUpgradeResponse
-import kttp.http.websocket.WebsocketConnectionUpgrade.createUpgradeRequest
 import kttp.security.Sha1
 import java.net.URI
 import java.security.SecureRandom
@@ -19,9 +15,9 @@ object WebsocketConnectionUpgrade {
         return createUpgradeResponse(httpRequest, createDefaultUpgradeResponseHeader(httpRequest.headers))
     }
 
-    fun createUpgradeResponse(httpRequest: HttpRequest, httpHeaders: HttpHeaders): HttpResponse {
+    fun createUpgradeResponse(httpRequest: HttpRequest, responseHeaders: HttpHeaders): HttpResponse {
         checkIsValidUpgradeRequest(httpRequest)
-        val response = HttpResponse.fromStatus(HttpStatus.SWITCHING_PROTOCOLS, httpHeaders)
+        val response = HttpResponse.fromStatus(HttpStatus.SWITCHING_PROTOCOLS, responseHeaders)
         return response
     }
 
@@ -142,19 +138,6 @@ object WebsocketConnectionUpgrade {
         val newKey = key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" // https://www.rfc-editor.org/rfc/rfc6455#page-8
         return Sha1.hashToBase64(newKey)
     }
-}
-
-
-
-fun HttpClientConnection.upgradeToWebsocket(uri: String): HttpClientConnection {
-    val request = createUpgradeRequest(uri)
-    val response = this.request(request)
-    checkIsValidUpgradeResponse(request, response)
-    return this
-}
-
-fun HttpClient.upgradeToWebsocket(uri: String): HttpClientConnection {
-    return connect().upgradeToWebsocket(uri)
 }
 
 open class InvalidUpgrade(msg: String) : RuntimeException(msg)
