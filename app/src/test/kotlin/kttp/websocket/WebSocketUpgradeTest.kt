@@ -5,8 +5,8 @@ import kttp.http.protocol.Connection
 import kttp.http.protocol.HttpHeaders
 import kttp.http.protocol.HttpRequest
 import kttp.http.protocol.HttpStatus
-import kttp.http.websocket.InvalidUpgrade
-import kttp.http.websocket.WebsocketConnectionUpgrade
+import kttp.websocket.InvalidUpgrade
+import kttp.websocket.WebsocketConnectionUpgrade
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals

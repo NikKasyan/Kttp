@@ -10,7 +10,7 @@ import javax.net.ssl.SSLContext
 data class HttpServerOptions(
     val secure: Boolean = false,
     val port: Int = if(secure) 443 else 80,
-    val socketTimeout: Duration = Duration.ofSeconds(30),
+    val socketTimeout: Duration = Duration.ofSeconds(30), // -1 for unlimited
     val hostName: String = "127.0.0.1",
     val httpVersion: HttpVersion = HttpVersion.DEFAULT_VERSION,
     val tlsOptions: TLSOptions = TLSOptions.DEFAULT,

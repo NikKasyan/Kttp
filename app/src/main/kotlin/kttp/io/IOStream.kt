@@ -47,6 +47,31 @@ class IOStream(private val inputStream: InputStream,
         output.flush()
     }
 
+    fun writeByteToBuffer(byte: Byte) {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        output.write(byte.toInt())
+    }
+
+    fun writeBytesToBuffer(bytes: ByteArray, offset: Int = 0, length: Int = bytes.size) {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        output.write(bytes, offset, length)
+    }
+
+    fun writeBytesToBuffer(inputStream: InputStream) {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        inputStream.transferTo(output)
+    }
+
+    fun flush() {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        output.flush()
+    }
+
+
     fun readLine(): String {
         if(isClosed)
             throw StreamAlreadyClosed()
@@ -57,10 +82,47 @@ class IOStream(private val inputStream: InputStream,
         }
     }
 
-
     fun readBytesAsString(contentLength: Int, charset: Charset = this.charset): String {
         return String(readNBytes(contentLength), charset)
     }
+
+    fun readByte(): Byte {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        return input.read().toByte()
+    }
+
+    fun readShort(): Short {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        val bytes = readNBytes(2)
+        return (bytes[0].toInt() shl 8 or (bytes[1].toInt() and 0xFF)).toShort()
+    }
+
+    fun readInt(): Int {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        val bytes = readNBytes(4)
+        return (bytes[0].toInt() shl 24 or
+                (bytes[1].toInt() and 0xFF) shl 16 or
+                (bytes[2].toInt() and 0xFF) shl 8 or
+                (bytes[3].toInt() and 0xFF))
+    }
+
+    fun readLong(): Long {
+        if(isClosed)
+            throw StreamAlreadyClosed()
+        val bytes = readNBytes(8)
+        return (bytes[0].toLong() shl 56 or
+                (bytes[1].toLong() and 0xFF) shl 48 or
+                (bytes[2].toLong() and 0xFF) shl 40 or
+                (bytes[3].toLong() and 0xFF) shl 32 or
+                (bytes[4].toLong() and 0xFF) shl 24 or
+                (bytes[5].toLong() and 0xFF) shl 16 or
+                (bytes[6].toLong() and 0xFF) shl 8 or
+                (bytes[7].toLong() and 0xFF))
+    }
+
 
     override fun close() {
         if (isClosed) {
@@ -93,6 +155,8 @@ class IOStream(private val inputStream: InputStream,
             return 0
         return input.available()
     }
+
+
 
 }
 

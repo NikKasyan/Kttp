@@ -28,7 +28,7 @@ Add testing for persistent connections
 - [ ] Add basic X.509 certificate to remove bouncy castle dependency
 - [ ] Add support for HTTP/3 (https://www.rfc-editor.org/rfc/rfc9000)
 - [ ] Add Missing content-endcodings (br, bzip2, zstd)
-- 
+- [ ] Add ByteString support to not allocate additional memory for every string
 # Not planned to be implemented soon
 
 compress or x-compress (Currently not feeling like implementing LZW with correct encoding) 

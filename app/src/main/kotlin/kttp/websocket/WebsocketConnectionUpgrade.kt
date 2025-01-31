@@ -1,4 +1,4 @@
-package kttp.http.websocket
+package kttp.websocket
 
 import kttp.http.protocol.*
 import kttp.security.Sha1
@@ -76,6 +76,7 @@ object WebsocketConnectionUpgrade {
         if(!hasValidWebSocketProtocol(headers))
             throw InvalidUpgrade("Invalid websocket protocol")
         // Todo: Also check for origin header https://www.rfc-editor.org/rfc/rfc6455#page-18 number 8
+        // Todo: Maybe also implement version negotiation https://www.rfc-editor.org/rfc/rfc6455#page-26
 
     }
 
@@ -85,11 +86,10 @@ object WebsocketConnectionUpgrade {
 
         if (!requestHeaders.upgrade().equals(responseHeaders.upgrade, ignoreCase = true))
             throw InvalidUpgradeHeader("Invalid upgrade protocol ${responseHeaders.upgrade}")
-
-        if (!requestHeaders.webSocketVersion.equals(responseHeaders.webSocketVersion))
-            throw InvalidUpgradeHeader("Invalid websocket version")
-
+        if(responseHeaders.hasWebSocketProtocol() && !requestHeaders.webSocketProtocolAsList().contains(responseHeaders.webSocketProtocolAsList().firstOrNull()))
+            throw InvalidUpgradeHeader("Invalid websocket protocol ${responseHeaders.webSocketProtocol}")
         checkIsValidWebsocketAccept(requestHeaders.webSocketKey(), responseHeaders.webSocketAccept())
+
     }
 
     private fun checkIsValidWebsocketAccept(requestKey: String, responseAccept: String) {

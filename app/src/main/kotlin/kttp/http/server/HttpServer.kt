@@ -1,7 +1,7 @@
 package kttp.http.server
 
 import kttp.http.protocol.*
-import kttp.http.websocket.InvalidUpgrade
+import kttp.websocket.InvalidUpgrade
 import kttp.io.EndOfStream
 import kttp.log.Logger
 import kttp.net.ClientConnection

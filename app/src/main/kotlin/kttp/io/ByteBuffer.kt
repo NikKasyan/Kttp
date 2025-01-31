@@ -5,7 +5,6 @@ import java.nio.charset.Charset
 
 class ByteBuffer(private val buffer: ByteArray,
                  private var readPosition: Int = 0) {
-
     var length: Int = 0
         private set
 

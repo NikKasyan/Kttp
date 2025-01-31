@@ -107,13 +107,12 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 }
 
 
-class HttpClientConnection(private val socket: Socket): AutoCloseable {
+class HttpClientConnection(val io: IOStream): AutoCloseable {
 
-    var isClosed = false
-        private set
-        get () = socket.isConnected || socket.isClosed || field
+    private var isClosed = false
 
-    val io = IOStream(socket.getInputStream(), socket.getOutputStream())
+    constructor(socket: Socket): this(IOStream(socket.getInputStream(), socket.getOutputStream()))
+
 
     fun request(request: HttpRequest): HttpResponse {
         if(!request.headers.hasHost())
@@ -136,11 +135,6 @@ class HttpClientConnection(private val socket: Socket): AutoCloseable {
         if (isClosed)
             return
         isClosed = true
-        try{
-            socket.close()
-        } catch (e: Exception){
-            //Ignore
-        }
         try {
             io.close()
         } catch (e: Exception){
