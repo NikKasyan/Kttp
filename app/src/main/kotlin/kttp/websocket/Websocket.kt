@@ -99,11 +99,11 @@ class Websocket(private val connection: HttpClientConnection, initializeEvents: 
     }
 
     fun send(message: ByteArray, isBinary: Boolean = true, isFinal: Boolean = true) {
-        send(message, 0, message.size, isBinary)
+        send(message, 0, message.size, isBinary, isFinal)
     }
 
     fun send(message: ByteArray, offset: Int, length: Int, isBinary: Boolean, isFinal: Boolean = true) {
-        val opcode = if (isBinary) WebsocketOpCodes.BINARY else WebsocketOpCodes.TEXT
+        val opcode = if (!isFinal) WebsocketOpCodes.CONTINUATION else if (isBinary) WebsocketOpCodes.BINARY else WebsocketOpCodes.TEXT
         val frame = WebsocketFrame(isFinal, opcode, masked, payload = message, offset = offset, length = length)
         send(frame)
 

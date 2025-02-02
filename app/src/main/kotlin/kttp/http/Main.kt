@@ -12,66 +12,74 @@ import kotlin.concurrent.thread
 
 
 object Main {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        HttpServer(HttpServerOptions(port = 8080, socketTimeout = Duration.ofSeconds(300)))
-            .onGet("/test") {
-                respond(HttpResponse.ok(body = "Test"))
-            }.onGet("/") {
-                respond(WebsocketConnectionUpgrade.createUpgradeResponse(request))
-                val websocket = Websocket.fromConnection(io) {
-                    onOpen = {
-                        println("Got new connection")
-                    }
-                    onMessage = {
-                        println("Message: $it")
-                    }
-                }
-                websocket.handleEvents()
+	@JvmStatic
+	fun main(args: Array<String>) {
+		HttpServer(HttpServerOptions(port = 8080, socketTimeout = Duration.ofSeconds(300)))
+			.onGet("/test1") {
+				respond(HttpResponse.ok(body = "Test"))
+			}.onGet("/") {
+				respond(WebsocketConnectionUpgrade.createUpgradeResponse(request))
+				val websocket = Websocket.fromConnection(io) {
+					onOpen = {
+						println("Got new connection")
+					}
+					onMessage = {
+						println("Message: $it")
+					}
+				}
+				websocket.handleEvents()
 
-            }
-            .start()
-    }
+			}.onGet("/test") {
+				respond(WebsocketConnectionUpgrade.createUpgradeResponse(request))
+				val websocketClient = Websocket.fromConnection(io)
+				websocketClient.onMessage = {
+					websocketClient.send("Hello".byteInputStream())
+
+				}
+				websocketClient.handleEvents()
+			}
+			.start()
+	}
 }
 
 
 object Client {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val client = HttpClient("https://localhost", verifyCertificate = false)
-        val response = client.get("/test")
-        println(response.statusLine)
-        println(response.body.readAsString())
+	@JvmStatic
+	fun main(args: Array<String>) {
+		val client = HttpClient("https://localhost", verifyCertificate = false)
+		val response = client.get("/test")
+		println(response.statusLine)
+		println(response.body.readAsString())
 
-    }
+	}
 }
 
 object WebsocketClient {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val websocket = Websocket.connect("ws://localhost:8080/") {
-            onOpen = {
-                println("Connected")
-            }
-            onMessage = {
-                println(it)
-            }
-            onClose = {
-                println("Closed")
-            }
-        }
-        websocket.use {
-            thread {
-                websocket.handleEvents()
-            }
-            while (websocket.state == WebsocketState.OPEN) {
-                val line = readlnOrNull()
-                if (line == "exit" || line == null) {
-                    websocket.close()
-                    break
-                }
-                websocket.send(line)
-            }
-        }
-    }
+	@JvmStatic
+	fun main(args: Array<String>) {
+		val websocket = Websocket.connect("ws://localhost:8080/") {
+			onOpen = {
+				println("Connected")
+			}
+			onMessage = {
+				println(it)
+			}
+			onClose = {
+				println("Closed")
+			}
+		}
+		websocket.use {
+			thread {
+				websocket.handleEvents()
+			}
+			while (websocket.state == WebsocketState.OPEN) {
+				val line = readlnOrNull()
+				if (line == "exit" || line == null) {
+					websocket.close()
+					break
+				}
+				websocket.send(line)
+			}
+		}
+	}
 }

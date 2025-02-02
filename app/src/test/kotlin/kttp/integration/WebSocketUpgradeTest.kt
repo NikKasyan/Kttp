@@ -64,17 +64,43 @@ class WebSocketUpgradeTest {
 
     @Test
     fun testMessageSending() {
-        val websocket = Websocket.connect("ws://${server.getHost()}") {
-            onOpen = {
-                send("Hello")
-            }
-        }
-        server.onGet("/") {
+
+        server.onGet("/test") {
             respond(WebsocketConnectionUpgrade.createUpgradeResponse(request))
             val websocketClient = Websocket.fromConnection(io)
             websocketClient.onMessage = {
                 assertEquals("Hello", it)
-                websocket.send(it)
+                websocketClient.send(it)
+            }
+            websocketClient.handleEvents()
+        }
+        val websocket = Websocket.connect("ws://${server.getHost()}/test") {
+            onOpen = {
+                send("Hello")
+            }
+        }
+
+        val frame = websocket.readFrame()
+        assertEquals("Hello", frame.payload.toString(Charsets.UTF_8))
+
+    }
+
+    @Test
+    fun testFragmentedMessageSending() {
+
+        server.onGet("/test") {
+            respond(WebsocketConnectionUpgrade.createUpgradeResponse(request))
+            val websocketClient = Websocket.fromConnection(io)
+            websocketClient.onMessage = {
+                assertEquals("Hello", it)
+                websocketClient.send("Hello".byteInputStream())
+
+            }
+            websocketClient.handleEvents()
+        }
+        val websocket = Websocket.connect("ws://${server.getHost()}/test") {
+            onOpen = {
+                send("Hello")
             }
         }
 

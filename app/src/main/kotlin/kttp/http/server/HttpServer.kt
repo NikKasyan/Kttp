@@ -286,6 +286,8 @@ class HttpServer(
 class ReqHandlers(private val httpRequestHandlers: MutableList<ReqHandler> = mutableListOf()) {
 
     fun addHandler(httpReqHandler: ReqHandler) {
+        if(httpRequestHandlers.any { it.path == httpReqHandler.path })
+            throw IllegalArgumentException("Path: \"${httpReqHandler.path}\" already exists")
         httpRequestHandlers.add(httpReqHandler)
     }
 

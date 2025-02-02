@@ -137,7 +137,13 @@ class ContentEncoding private constructor(value: String, parameters: Map<String,
 enum class Connection(val value: String) {
     CLOSE("close"),
     KEEP_ALIVE("keep-alive"),
-    UPGRADE("upgrade")
+    UPGRADE("upgrade");
+
+    companion object {
+        fun valueOf(value: String): Connection {
+            return entries.find { it.value.equals(value, ignoreCase = true)  } ?: throw IllegalArgumentException("No enum constant for $value")
+        }
+    }
 }
 
 object MimeTypes {
@@ -565,8 +571,8 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return accept().split(",").map { it.trim() }
     }
 
-    var connection: Connection?
-        get() = if (hasConnection()) connection() else null
+    var connection: List<Connection>?
+        get() = if (hasConnection()) connection() else emptyList()
         set(value) {
             if (value == null)
                 headers.remove(CommonHeaders.CONNECTION)
@@ -574,13 +580,24 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
                 withConnection(value)
         }
 
-    fun withConnection(connection: Connection): HttpHeaders {
-        headers[CommonHeaders.CONNECTION] = connection.value
+    fun withConnection(connection: List<Connection>): HttpHeaders {
+        headers[CommonHeaders.CONNECTION] = connection.joinToString { it.value }
+        return this
+    }
+
+    fun withConnection(vararg connection: String): HttpHeaders {
+        connection.map { Connection.valueOf(it) } // Check if all values are valid
+        headers[CommonHeaders.CONNECTION] = connection.joinToString()
+        return this
+    }
+
+    fun withConnection(vararg connection: Connection): HttpHeaders {
+        headers[CommonHeaders.CONNECTION] = connection.joinToString { it.value }
         return this
     }
 
     fun hasConnection(connection: Connection): Boolean {
-        return headers[CommonHeaders.CONNECTION] == connection.value
+        return connection().contains(connection)
     }
 
     fun withConnection(connection: String): HttpHeaders {
@@ -592,8 +609,8 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return headers.containsKey(CommonHeaders.CONNECTION)
     }
 
-    fun connection(): Connection {
-        return Connection.entries.first { it.value == headers[CommonHeaders.CONNECTION] }
+    fun connection(): List<Connection> {
+        return connectionAsString().split(",").map { Connection.valueOf(it.trim()) }
     }
 
     fun connectionAsString(): String {
