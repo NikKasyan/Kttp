@@ -51,15 +51,18 @@ class WebsocketFrame(
 			val opcode = firstByte.toInt() and 0x0F
 			val secondByte = ioStream.readByte()
 			val masked = secondByte.toInt() and 0x80 != 0
+			// The extended payload lengths are unsigned https://www.rfc-editor.org/rfc/rfc6455#section-5.2
 			val payloadLength = when (val length = secondByte.toInt() and 0x7F) {
-				in 0..125 -> length
-				126 -> ioStream.readShort().toInt()
-				127 -> ioStream.readLong().toInt()
+				in 0..125 -> length.toLong()
+				126 -> (ioStream.readShort().toInt() and 0xFFFF).toLong()
+				127 -> ioStream.readLong()
 				else -> throw IllegalArgumentException("Invalid payload length")
 			}
+			// The most significant bit of the 64-bit length must be 0 https://www.rfc-editor.org/rfc/rfc6455#section-5.2
+			require(payloadLength >= 0) { "Invalid payload length" }
 			val maskingKey = if (masked) ioStream.readExactly(4) else EMPTY
 
-			val payload = WebsocketPayload(ioStream, masked, maskingKey, payloadLength.toLong())
+			val payload = WebsocketPayload(ioStream, masked, maskingKey, payloadLength)
 
 			return WebsocketFrame(isFinalFrame, opcode, masked, maskingKey, payload)
 		}
@@ -113,13 +116,13 @@ class WebsocketFrame(
 
 	private fun longToBytes(long: Long): ByteArray {
 		return byteArrayOf(
-			(long.toInt() shr 56).toByte(),
-			(long.toInt() shr 48).toByte(),
-			(long.toInt() shr 40).toByte(),
-			(long.toInt() shr 32).toByte(),
-			(long.toInt() shr 24).toByte(),
-			(long.toInt() shr 16).toByte(),
-			(long.toInt() shr 8).toByte(),
+			(long shr 56).toByte(),
+			(long shr 48).toByte(),
+			(long shr 40).toByte(),
+			(long shr 32).toByte(),
+			(long shr 24).toByte(),
+			(long shr 16).toByte(),
+			(long shr 8).toByte(),
 			long.toByte()
 		)
 	}

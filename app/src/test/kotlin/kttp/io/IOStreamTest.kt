@@ -144,6 +144,19 @@ class IOStreamTest {
     }
 
     @Test
+    fun readIntReadsFourBytesInNetworkByteOrder() {
+        val ioStream = IOStream(byteArrayOf(0x12, 0x34, 0x56, 0x78).inputStream(), OutputStream.nullOutputStream())
+        assertEquals(0x12345678, ioStream.readInt())
+    }
+
+    @Test
+    fun readLongReadsEightBytesInNetworkByteOrder() {
+        val bytes = byteArrayOf(0x12, 0x34, 0x56, 0x78, 0x9A.toByte(), 0xBC.toByte(), 0xDE.toByte(), 0xF0.toByte())
+        val ioStream = IOStream(bytes.inputStream(), OutputStream.nullOutputStream())
+        assertEquals(0x123456789ABCDEF0, ioStream.readLong())
+    }
+
+    @Test
     fun readLongWithTooFewBytesThrowsEndOfStream() {
         val ioStream = IOStream(byteArrayOf(1, 2, 3).inputStream(), OutputStream.nullOutputStream())
         assertFailsWith<EndOfStream> { ioStream.readLong() }

@@ -106,9 +106,10 @@ class IOStream(private val inputStream: InputStream,
         if(isClosed)
             throw StreamAlreadyClosed()
         val bytes = readExactly(4)
-        return (bytes[0].toInt() shl 24 or
-                (bytes[1].toInt() and 0xFF) shl 16 or
-                (bytes[2].toInt() and 0xFF) shl 8 or
+        // Infix functions have the same precedence and are evaluated from left to right, so every shift needs parentheses
+        return ((bytes[0].toInt() shl 24) or
+                ((bytes[1].toInt() and 0xFF) shl 16) or
+                ((bytes[2].toInt() and 0xFF) shl 8) or
                 (bytes[3].toInt() and 0xFF))
     }
 
@@ -116,13 +117,14 @@ class IOStream(private val inputStream: InputStream,
         if(isClosed)
             throw StreamAlreadyClosed()
         val bytes = readExactly(8)
-        return (bytes[0].toLong() shl 56 or
-                (bytes[1].toLong() and 0xFF) shl 48 or
-                (bytes[2].toLong() and 0xFF) shl 40 or
-                (bytes[3].toLong() and 0xFF) shl 32 or
-                (bytes[4].toLong() and 0xFF) shl 24 or
-                (bytes[5].toLong() and 0xFF) shl 16 or
-                (bytes[6].toLong() and 0xFF) shl 8 or
+        // Infix functions have the same precedence and are evaluated from left to right, so every shift needs parentheses
+        return ((bytes[0].toLong() shl 56) or
+                ((bytes[1].toLong() and 0xFF) shl 48) or
+                ((bytes[2].toLong() and 0xFF) shl 40) or
+                ((bytes[3].toLong() and 0xFF) shl 32) or
+                ((bytes[4].toLong() and 0xFF) shl 24) or
+                ((bytes[5].toLong() and 0xFF) shl 16) or
+                ((bytes[6].toLong() and 0xFF) shl 8) or
                 (bytes[7].toLong() and 0xFF))
     }
 
