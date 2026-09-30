@@ -8,3 +8,9 @@ build
 
 # Ignore IDE build output directory
 app/bin
+
+# Ignore Kotlin compiler data directory
+.kotlin
+
+# Ignore generated TLS keystore
+keystore.jks
