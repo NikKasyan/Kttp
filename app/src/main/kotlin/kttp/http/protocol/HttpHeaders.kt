@@ -140,7 +140,7 @@ enum class Connection(val value: String) {
     UPGRADE("upgrade");
 
     companion object {
-        fun valueOf(value: String): Connection {
+        fun byValue(value: String): Connection {
             return entries.find { it.value.equals(value, ignoreCase = true)  } ?: throw IllegalArgumentException("No enum constant for $value")
         }
     }
@@ -586,7 +586,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun withConnection(vararg connection: String): HttpHeaders {
-        connection.map { Connection.valueOf(it) } // Check if all values are valid
+        connection.map { Connection.byValue(it) } // Check if all values are valid
         headers[CommonHeaders.CONNECTION] = connection.joinToString()
         return this
     }
@@ -610,7 +610,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun connection(): List<Connection> {
-        return connectionAsString().split(",").map { Connection.valueOf(it.trim()) }
+        return connectionAsString().split(",").map { Connection.byValue(it.trim()) }
     }
 
     fun connectionAsString(): String {

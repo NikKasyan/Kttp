@@ -70,4 +70,10 @@ class HttpHeaderTest {
         val headers = HttpHeaders(listOf(HttpHeader("Content-Length" to "100,100,100")))
         assertEquals(headers.contentLength, 100)
     }
+
+    @Test
+    fun connectionWithMultipleOptions_shouldBeParsedCorrectly(){
+        val headers = HttpHeaders(listOf(HttpHeader("Connection" to "keep-alive, Upgrade")))
+        assertEquals(listOf(Connection.KEEP_ALIVE, Connection.UPGRADE), headers.connection)
+    }
 }

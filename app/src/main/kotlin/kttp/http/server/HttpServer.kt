@@ -11,9 +11,9 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.util.*
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 
 
@@ -63,7 +63,7 @@ class HttpServer(
 
     private var isRunning = false
 
-    private val start = Semaphore(0)
+    private val start = CountDownLatch(1)
 
     private var hasStarted = false
 
@@ -108,7 +108,7 @@ class HttpServer(
             this.serverSocket = socketFactory.createServerSocket()
             serverSocket.bind(InetSocketAddress(hostName, port))
         } catch (e: Exception) {
-            start.release(start.queueLength)
+            start.countDown()
             throw e
         }
         acceptNewSockets()
@@ -118,7 +118,7 @@ class HttpServer(
     fun waitUntilStarted() {
         if (hasStarted)
             return
-        start.acquire()
+        start.await()
         if(!hasStarted)
             throw IllegalStateException("Server did not start")
     }
@@ -126,8 +126,8 @@ class HttpServer(
     private fun acceptNewSockets() {
         while (isRunning) {
             if (!hasStarted) {
-                start.release(start.queueLength)
                 hasStarted = true
+                start.countDown()
             }
             try {
                 val socket = serverSocket.accept()
@@ -242,7 +242,7 @@ class HttpServer(
     fun stop() {
         isRunning = false
         hasStarted = false
-        start.release(start.queueLength)
+        start.countDown()
         executorService.shutdown()
         openConnections.toList().forEach { it.close() }
         openConnections.clear()
