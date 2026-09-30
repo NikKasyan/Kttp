@@ -89,20 +89,23 @@ class IOStream(private val inputStream: InputStream,
     fun readByte(): Byte {
         if(isClosed)
             throw StreamAlreadyClosed()
-        return input.read().toByte()
+        val byte = input.read()
+        if (byte == -1)
+            throw EndOfStream()
+        return byte.toByte()
     }
 
     fun readShort(): Short {
         if(isClosed)
             throw StreamAlreadyClosed()
-        val bytes = readNBytes(2)
+        val bytes = readExactly(2)
         return (bytes[0].toInt() shl 8 or (bytes[1].toInt() and 0xFF)).toShort()
     }
 
     fun readInt(): Int {
         if(isClosed)
             throw StreamAlreadyClosed()
-        val bytes = readNBytes(4)
+        val bytes = readExactly(4)
         return (bytes[0].toInt() shl 24 or
                 (bytes[1].toInt() and 0xFF) shl 16 or
                 (bytes[2].toInt() and 0xFF) shl 8 or
@@ -112,7 +115,7 @@ class IOStream(private val inputStream: InputStream,
     fun readLong(): Long {
         if(isClosed)
             throw StreamAlreadyClosed()
-        val bytes = readNBytes(8)
+        val bytes = readExactly(8)
         return (bytes[0].toLong() shl 56 or
                 (bytes[1].toLong() and 0xFF) shl 48 or
                 (bytes[2].toLong() and 0xFF) shl 40 or
@@ -121,6 +124,13 @@ class IOStream(private val inputStream: InputStream,
                 (bytes[5].toLong() and 0xFF) shl 16 or
                 (bytes[6].toLong() and 0xFF) shl 8 or
                 (bytes[7].toLong() and 0xFF))
+    }
+
+    fun readExactly(count: Int): ByteArray {
+        val bytes = readNBytes(count)
+        if (bytes.size < count)
+            throw EndOfStream()
+        return bytes
     }
 
 

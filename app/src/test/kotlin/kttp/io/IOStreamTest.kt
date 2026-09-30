@@ -18,6 +18,7 @@ import java.net.Socket
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 @Timeout(5, unit = TimeUnit.SECONDS)
 class IOStreamTest {
@@ -134,6 +135,18 @@ class IOStreamTest {
         assertEquals(lines[0], string)
         string = ioStream.readAllBytes().toString(Charsets.UTF_8)
         assertEquals(inputString.substring(inputString.indexOf('\n') + 1), string)
+    }
+
+    @Test
+    fun readByteAtEndOfStreamThrowsEndOfStream() {
+        val ioStream = IOStream(byteArrayOf().inputStream(), OutputStream.nullOutputStream())
+        assertFailsWith<EndOfStream> { ioStream.readByte() }
+    }
+
+    @Test
+    fun readLongWithTooFewBytesThrowsEndOfStream() {
+        val ioStream = IOStream(byteArrayOf(1, 2, 3).inputStream(), OutputStream.nullOutputStream())
+        assertFailsWith<EndOfStream> { ioStream.readLong() }
     }
 
     @AfterEach

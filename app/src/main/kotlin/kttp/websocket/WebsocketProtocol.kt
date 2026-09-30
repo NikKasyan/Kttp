@@ -57,7 +57,7 @@ class WebsocketFrame(
 				127 -> ioStream.readLong().toInt()
 				else -> throw IllegalArgumentException("Invalid payload length")
 			}
-			val maskingKey = if (masked) ioStream.readNBytes(4) else EMPTY
+			val maskingKey = if (masked) ioStream.readExactly(4) else EMPTY
 
 			val payload = WebsocketPayload(ioStream, masked, maskingKey, payloadLength.toLong())
 
