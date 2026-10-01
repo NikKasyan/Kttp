@@ -12,7 +12,7 @@ import java.util.*
 val NOT_FOUND_HANDLER = {
     ReqHandler("/**", EnumSet.allOf(Method::class.java)) {
         val notFound = "Not Found ${request.uri.path}"
-        respond(notFound)
+        respond(HttpResponse.notFound(body = notFound))
     }
 }
 

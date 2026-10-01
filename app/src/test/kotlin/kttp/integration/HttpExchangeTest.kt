@@ -43,6 +43,17 @@ class HttpExchangeTest {
     }
 
     @Test
+    fun clientSendsHostOfBaseUrlForRelativePath() {
+        server.onGet("/") {
+            respond(request.headers.host ?: "No Host")
+        }
+
+        val response = client.get("/")
+
+        assertEquals(server.getHost(), response.body.readAsString())
+    }
+
+    @Test
     fun serverSendsBadRequest() {
         server.onGet("/") {
             respond(HttpResponse.badRequest())

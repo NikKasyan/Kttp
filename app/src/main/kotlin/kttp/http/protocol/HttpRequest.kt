@@ -34,7 +34,8 @@ class HttpRequest(
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: HttpBody): HttpRequest {
             if(uri.isAbsolute && uri.host == null && !httpHeaders.hasHost())
                 throw MissingHostHeader()
-            if(!httpHeaders.hasHost())
+            // Only an absolute URI has a host to take the Host header from
+            if(!httpHeaders.hasHost() && uri.host != null)
                 httpHeaders.withHost(uri)
 
             return HttpRequest(RequestLine(method, uri), httpHeaders, body)

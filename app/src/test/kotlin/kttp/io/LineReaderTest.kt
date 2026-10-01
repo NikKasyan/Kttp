@@ -4,7 +4,9 @@ import kttp.io.LineReader
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import java.io.ByteArrayInputStream
+import java.io.SequenceInputStream
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 @Timeout(5)
 class LineReaderTest {
@@ -103,5 +105,31 @@ class LineReaderTest {
         assertEquals(lines[0], string)
         string = lineReader.readAllBytes().toString(Charsets.UTF_8)
         assertEquals(inputString.substring(inputString.indexOf('\n') + 1), string)
+    }
+
+    @Test
+    fun crlfSplitAcrossTwoReads_isNotPartOfTheLine() {
+        // SequenceInputStream returns the end of the first stream and the start of the second in different reads
+        val input = SequenceInputStream("GET / HTTP/1.1\r".byteInputStream(), "\nHost: localhost\r\n".byteInputStream())
+        val lineReader = LineReader(input)
+
+        assertEquals("GET / HTTP/1.1", lineReader.readLine())
+        assertEquals("Host: localhost", lineReader.readLine())
+    }
+
+    @Test
+    fun readLineAtEndOfStream_returnsNull() {
+        val lineReader = LineReader("Das ist ein Test\r\n".byteInputStream())
+
+        assertEquals("Das ist ein Test", lineReader.readLine())
+        assertNull(lineReader.readLine())
+    }
+
+    @Test
+    fun emptyLine_isNotEndOfStream() {
+        val lineReader = LineReader("\r\n".byteInputStream())
+
+        assertEquals("", lineReader.readLine())
+        assertNull(lineReader.readLine())
     }
 }

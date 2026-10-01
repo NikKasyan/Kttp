@@ -79,7 +79,7 @@ class IOStreamTest {
     @Test
     fun serverWrites_clientReads_serverStops_shouldThrowEndOfStream() {
         thread { Thread.sleep(100); server.stop() }
-        assert(client.io.readLine().isEmpty())
+        assertThrows<EndOfStream> { client.io.readLine() }
     }
 
     @Test
@@ -97,7 +97,7 @@ class IOStreamTest {
             client.close()
         }
 
-        assert(server.readLine().isEmpty())
+        assertThrows<EndOfStream> { server.readLine() }
     }
 
     @Test
@@ -141,6 +141,12 @@ class IOStreamTest {
     fun readByteAtEndOfStreamThrowsEndOfStream() {
         val ioStream = IOStream(byteArrayOf().inputStream(), OutputStream.nullOutputStream())
         assertFailsWith<EndOfStream> { ioStream.readByte() }
+    }
+
+    @Test
+    fun readLineAtEndOfStreamThrowsEndOfStream() {
+        val ioStream = IOStream(byteArrayOf().inputStream(), OutputStream.nullOutputStream())
+        assertFailsWith<EndOfStream> { ioStream.readLine() }
     }
 
     @Test

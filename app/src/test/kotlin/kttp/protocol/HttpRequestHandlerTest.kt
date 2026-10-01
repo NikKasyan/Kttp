@@ -6,6 +6,7 @@ import kttp.http.protocol.*
 import kttp.http.protocol.transfer.ChunkExtensionTooLong
 import kttp.http.protocol.transfer.chunkString
 import kttp.http.protocol.transfer.chunkStringWithChunkSize
+import kttp.io.EndOfStream
 import kttp.io.IOStream
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -24,8 +25,8 @@ class HttpRequestHandlerTest {
             GET / HTTP/1.1
             Host: localhost:8080
             User-Agent: TestClient/7.68.0
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val outputStream = ByteArrayOutputStream()
         val ioStream = IOStream(stream, outputStream)
@@ -48,7 +49,7 @@ class HttpRequestHandlerTest {
             .withHost("$host:$port")
             .withUserAgent("TestClient/7.68.0")
             .withAccept("*/*")
-        val request = "$requestLine$headers\r\n"
+        val request = "$requestLine$headers\r\n\r\n"
         val stream = request.byteInputStream()
 
         val outputStream = OutputStream.nullOutputStream()
@@ -74,7 +75,7 @@ class HttpRequestHandlerTest {
             .withHost("$host:$port")
             .withUserAgent("TestClient/7.68.0")
             .withAccept("*/*")
-        val request = "$requestLine$headers\r\n"
+        val request = "$requestLine$headers\r\n\r\n"
         val stream = request.byteInputStream()
 
         val outputStream = OutputStream.nullOutputStream()
@@ -94,8 +95,8 @@ class HttpRequestHandlerTest {
         val requestWithNoHost = """
             GET / HTTP/1.1
             User-Agent: TestClient/7.68.0
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val ioStream = IOStream(requestWithNoHost, OutputStream.nullOutputStream())
 
@@ -106,14 +107,28 @@ class HttpRequestHandlerTest {
     }
 
     @Test
+    fun requestWithRelativeUriAndNoHost_throwsMissingHostHeader() {
+        assertThrows<MissingHostHeader> {
+            HttpRequest.get("/test")
+        }
+    }
+
+    @Test
+    fun requestWithAbsoluteUri_takesHostFromUri() {
+        val request = HttpRequest.get("http://localhost:8080/test")
+
+        assertEquals("localhost:8080", request.headers.host)
+    }
+
+    @Test
     fun testRequestShouldHaveAtMostOneHost() {
         val requestWithNoHost = """
             GET / HTTP/1.1
             User-Agent: TestClient/7.68.0
             Host: localhost:8080
             Host: localhost:8080
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val ioStream = IOStream(requestWithNoHost, OutputStream.nullOutputStream())
 
@@ -130,8 +145,8 @@ class HttpRequestHandlerTest {
             User-Agent: TestClient/7.68.0
             Host: localhost:8080
             Content-Length: invalid
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
@@ -147,8 +162,8 @@ class HttpRequestHandlerTest {
             User-Agent: TestClient/7.68.0
             Host: localhost:8080
             Transfer-Encoding: invalid
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val ioStream = IOStream(requestWithInvalidTransferEncoding, OutputStream.nullOutputStream())
 
@@ -164,8 +179,8 @@ class HttpRequestHandlerTest {
             User-Agent: TestClient/7.68.0
             Host: localhost:8080
             Content-Length: 0,0,0
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
@@ -182,8 +197,8 @@ class HttpRequestHandlerTest {
             User-Agent: TestClient/7.68.0
             Host: localhost:8080
             Content-Length: invalid
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
@@ -198,12 +213,24 @@ class HttpRequestHandlerTest {
             User-Agent: TestClient/7.68.0
             Host: localhost:8080
             Content-Length: 0,1,0
-            Accept: */*\r\n\r\n
-        """.trimIndent().byteInputStream()
+            Accept: */*
+        """.trimIndent().plus("\r\n\r\n").byteInputStream()
 
         val ioStream = IOStream(requestWithInvalidContentLength, OutputStream.nullOutputStream())
 
         assertThrows<InvalidContentLength> {
+            HttpRequestHandler().handleRequest(ioStream)
+        }
+    }
+
+    // A message cut off in the header section is incomplete https://www.rfc-editor.org/rfc/rfc9112#section-8
+    @Test
+    fun requestEndingInsideTheHeaders_throwsEndOfStream() {
+        val incompleteRequest = "GET / HTTP/1.1\r\nHost: localhost:8080\r\n".byteInputStream()
+
+        val ioStream = IOStream(incompleteRequest, OutputStream.nullOutputStream())
+
+        assertThrows<EndOfStream> {
             HttpRequestHandler().handleRequest(ioStream)
         }
     }

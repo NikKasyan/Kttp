@@ -4,6 +4,7 @@ import kttp.http.server.HttpServer
 import kttp.http.protocol.HttpStatus
 import kttp.http.protocol.HttpVersion
 import kttp.http.protocol.StatusLine
+import kttp.http.protocol.readHeaders
 import kttp.net.ClientConnection
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -86,6 +87,32 @@ class HttpServerResponseTest {
         assertEquals(HttpStatus.NOT_IMPLEMENTED, statusLine.status)
 
 
+    }
+
+    @Test
+    fun requestWithoutConnectionHeaderToUnknownPath_getsNotFound(){
+        client.io.writeln("GET /unknown HTTP/1.1")
+        client.io.writeln("Host: localhost:8080")
+        client.io.writeln()
+
+        val statusLine = StatusLine(client.io.readLine())
+
+        assertEquals(HttpStatus.NOT_FOUND, statusLine.status)
+    }
+
+    @Test
+    fun errorResponse_endsAfterContentLength(){
+        client.io.writeln("GET / HTTP/1.1")
+        client.io.writeln()
+
+        val statusLine = StatusLine(client.io.readLine())
+        val headers = readHeaders(client.io)
+        val body = client.io.readNBytes(headers.contentLength!!.toInt())
+
+        assertEquals(HttpStatus.BAD_REQUEST, statusLine.status)
+        assertEquals(headers.contentLength, body.size.toLong())
+        // The server closes the connection after an error, so nothing may follow the body
+        assertEquals(0, client.io.readAllBytes().size)
     }
 
     @AfterEach

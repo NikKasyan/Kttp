@@ -3,7 +3,12 @@ package kttp.protocol
 import kttp.http.protocol.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.Date
+import java.util.TimeZone
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class HttpHeaderTest {
 
@@ -75,5 +80,60 @@ class HttpHeaderTest {
     fun connectionWithMultipleOptions_shouldBeParsedCorrectly(){
         val headers = HttpHeaders(listOf(HttpHeader("Connection" to "keep-alive, Upgrade")))
         assertEquals(listOf(Connection.KEEP_ALIVE, Connection.UPGRADE), headers.connection)
+    }
+
+    @Test
+    fun missingConnection_hasNoConnectionOptions(){
+        val headers = HttpHeaders()
+        assertFalse(headers.hasConnection(Connection.CLOSE))
+        assertEquals(emptyList(), headers.connection())
+        assertEquals(emptyList(), headers.connectionAsStrings())
+    }
+
+    @Test
+    fun connectionWithUnknownOption_keepsAllOptions(){
+        val headers = HttpHeaders(listOf(HttpHeader("Connection" to "keep-alive, TE")))
+        assertTrue(headers.hasConnection(Connection.KEEP_ALIVE))
+        assertEquals(listOf(Connection.KEEP_ALIVE), headers.connection())
+        assertEquals(listOf("keep-alive", "TE"), headers.connectionAsStrings())
+    }
+
+    // Example from https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7
+    private val exampleDate = Date(784111777000L)
+
+    @Test
+    fun date_isAlwaysFormattedInGmt(){
+        val defaultTimeZone = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Europe/Berlin"))
+            val headers = HttpHeaders().withDate(exampleDate)
+            assertEquals("Sun, 06 Nov 1994 08:49:37 GMT", headers.dateAsString())
+        } finally {
+            TimeZone.setDefault(defaultTimeZone)
+        }
+    }
+
+    @Test
+    fun dateInImfFixdateFormat_isParsed(){
+        val headers = HttpHeaders(listOf(HttpHeader("Date" to "Sun, 06 Nov 1994 08:49:37 GMT")))
+        assertEquals(exampleDate, headers.date())
+    }
+
+    @Test
+    fun dateInObsoleteRfc850Format_isParsed(){
+        val headers = HttpHeaders(listOf(HttpHeader("Date" to "Sunday, 06-Nov-94 08:49:37 GMT")))
+        assertEquals(exampleDate, headers.date())
+    }
+
+    @Test
+    fun dateInObsoleteAsctimeFormat_isParsed(){
+        val headers = HttpHeaders(listOf(HttpHeader("Date" to "Sun Nov  6 08:49:37 1994")))
+        assertEquals(exampleDate, headers.date())
+    }
+
+    @Test
+    fun invalidDate_isNull(){
+        val headers = HttpHeaders(listOf(HttpHeader("Date" to "yesterday")))
+        assertNull(headers.date())
     }
 }

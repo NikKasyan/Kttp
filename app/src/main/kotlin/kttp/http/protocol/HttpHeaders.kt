@@ -203,12 +203,47 @@ object MimeTypes {
 
 object DateFormats {
     private const val IMF_FIX_DATE = "EEE, dd MMM yyyy HH:mm:ss z"
+    private const val RFC_850_DATE = "EEEE, dd-MMM-yy HH:mm:ss z"
+    private const val ASCTIME_DATE = "EEE MMM d HH:mm:ss yyyy"
 
+    // HTTP dates are always in GMT https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7
+    private val GMT = TimeZone.getTimeZone("GMT")
 
-    fun createImfFixDateFormat(locale: Locale = Locale.US, timeZone: TimeZone = TimeZone.getDefault()): DateFormat {
+    fun createImfFixDateFormat(locale: Locale = Locale.US): DateFormat {
+        return createDateFormat(IMF_FIX_DATE, locale)
+    }
 
-        val dateFormat = SimpleDateFormat(IMF_FIX_DATE, locale)
-        dateFormat.timeZone = timeZone
+    fun createRfc850DateFormat(): DateFormat {
+        val dateFormat = createDateFormat(RFC_850_DATE, Locale.US)
+        // A two-digit year more than 50 years in the future is in the past https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7
+        val fiftyYearsAgo = Calendar.getInstance(GMT).apply { add(Calendar.YEAR, -50) }.time
+        dateFormat.set2DigitYearStart(fiftyYearsAgo)
+        return dateFormat
+    }
+
+    fun createAsctimeDateFormat(): DateFormat {
+        return createDateFormat(ASCTIME_DATE, Locale.US)
+    }
+
+    /**
+     * Parses IMF-fixdate and the two obsolete formats, which a recipient must accept
+     * https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7
+     */
+    fun parse(date: String): Date? {
+        val dateFormats = listOf(createImfFixDateFormat(), createRfc850DateFormat(), createAsctimeDateFormat())
+        for (dateFormat in dateFormats) {
+            try {
+                return dateFormat.parse(date)
+            } catch (e: ParseException) {
+                // Try the next format
+            }
+        }
+        return null
+    }
+
+    private fun createDateFormat(pattern: String, locale: Locale): SimpleDateFormat {
+        val dateFormat = SimpleDateFormat(pattern, locale)
+        dateFormat.timeZone = GMT
         return dateFormat
     }
 }
@@ -506,8 +541,8 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
                 withDate(value)
         }
 
-    fun withDate(date: Date = Date(), timeZone: TimeZone = TimeZone.getDefault(), locale: Locale = Locale.US): HttpHeaders {
-        val dateString = convertToImfFixDate(date, timeZone, locale)
+    fun withDate(date: Date = Date(), locale: Locale = Locale.US): HttpHeaders {
+        val dateString = convertToImfFixDate(date, locale)
         headers[CommonHeaders.DATE] = dateString
         return this
     }
@@ -516,8 +551,8 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
      * Converts the given Date to a ImfFixDate String as the preferred dateString
      * as mentioned in https://www.rfc-editor.org/rfc/rfc9110#name-date-time-formats
      */
-    private fun convertToImfFixDate(date: Date, timeZone: TimeZone, locale: Locale): String {
-        val imfDateFormat = DateFormats.createImfFixDateFormat(locale, timeZone)
+    private fun convertToImfFixDate(date: Date, locale: Locale): String {
+        val imfDateFormat = DateFormats.createImfFixDateFormat(locale)
         return imfDateFormat.format(date)
     }
 
@@ -525,14 +560,10 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return headers.containsKey(CommonHeaders.DATE)
     }
 
-    fun date(dateFormat: DateFormat = DateFormats.createImfFixDateFormat()): Date? {
+    fun date(): Date? {
         if (!hasDate())
             return null
-        return try {
-            dateFormat.parse(headers[CommonHeaders.DATE])
-        } catch (e: ParseException) {
-            null
-        }
+        return DateFormats.parse(dateAsString())
     }
 
     fun dateAsString(): String = headers[CommonHeaders.DATE]!!
@@ -597,7 +628,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun hasConnection(connection: Connection): Boolean {
-        return connection().contains(connection)
+        return connectionAsStrings().any { it.equals(connection.value, ignoreCase = true) }
     }
 
     fun withConnection(connection: String): HttpHeaders {
@@ -609,8 +640,21 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return headers.containsKey(CommonHeaders.CONNECTION)
     }
 
+    /**
+     * Returns only the options known to [Connection]. Use [connectionAsStrings] for all options.
+     */
     fun connection(): List<Connection> {
-        return connectionAsString().split(",").map { Connection.byValue(it.trim()) }
+        return connectionAsStrings().mapNotNull { option ->
+            Connection.entries.find { it.value.equals(option, ignoreCase = true) }
+        }
+    }
+
+    // Any field name is a valid connection option https://www.rfc-editor.org/rfc/rfc9110#section-7.6.1
+    fun connectionAsStrings(): List<String> {
+        if (!hasConnection())
+            return emptyList()
+        // Empty list elements must be ignored https://www.rfc-editor.org/rfc/rfc9110#section-5.6.1.2
+        return connectionAsString().split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     fun connectionAsString(): String {

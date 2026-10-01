@@ -52,7 +52,10 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
 
     fun request(method: Method, requestUrl: String, httpHeaders: HttpHeaders = createDefaultHeaders()): HttpResponse {
-        val request = HttpRequest.from(method, URI(requestUrl), httpHeaders)
+        val requestUri = URI(requestUrl)
+        if (!httpHeaders.hasHost() && requestUri.host == null)
+            httpHeaders.withHost(baseURI)
+        val request = HttpRequest.from(method, requestUri, httpHeaders)
         return request(request)
     }
 

@@ -80,17 +80,7 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
     }
 
     fun writeTo(ioStream: IOStream) {
-        val stream = asStream()
-
-        val buffer = ByteArray(2048)
-
-        while (true) {
-            val read = stream.read(buffer)
-            if (read == -1)
-                break
-            ioStream.writeBytes(buffer)
-        }
-
+        ioStream.writeFromStream(asStream())
     }
 
     override fun close() {

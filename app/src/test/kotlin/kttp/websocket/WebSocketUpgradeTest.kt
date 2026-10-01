@@ -17,6 +17,7 @@ class WebSocketUpgradeTest {
     @Test
     fun testUpgradeToWebsocketResponse() {
         val headers = HttpHeaders() {
+            withHost("localhost")
             withConnection(Connection.UPGRADE)
             withUpgrade("websocket")
             withWebSocketKey("dGhlIHNhbXBsZSBub25jZQ==")
@@ -33,7 +34,7 @@ class WebSocketUpgradeTest {
 
     @Test
     fun testUpgradeToWebsocketRequest() {
-        val request = WebsocketConnectionUpgrade.createUpgradeRequest("/ws")
+        val request = WebsocketConnectionUpgrade.createUpgradeRequest("ws://localhost/ws")
         val response = WebsocketConnectionUpgrade.createUpgradeResponse(request)
 
         assertEquals(HttpStatus.SWITCHING_PROTOCOLS, response.statusLine.status)
@@ -45,6 +46,7 @@ class WebSocketUpgradeTest {
     fun testUpgradeToWebsocketRequestWithInvalidHeaders() {
         assertThrows<InvalidUpgrade> {
             val headers = HttpHeaders() {
+                withHost("localhost")
                 withConnection(Connection.UPGRADE)
                 withUpgrade("websocket")
             }

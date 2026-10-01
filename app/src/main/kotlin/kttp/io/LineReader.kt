@@ -12,7 +12,10 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
     private var bytesRead: Int = 0
     private var position: Int = 0
 
-    fun readLine(): String {
+    /**
+     * Returns the next line without its line ending, or null at the end of the stream.
+     */
+    fun readLine(): String? {
 
         val cappedByteBuffer = CappedByteBuffer(maxLineLengthInBytes)
 
@@ -22,27 +25,23 @@ class LineReader(inputStream: InputStream, private val maxLineLengthInBytes: Int
                 position = 0
 
                 if (bytesRead <= 0) {
-                    return cappedByteBuffer.toString()
+                    return if (cappedByteBuffer.isEmpty()) null else cappedByteBuffer.toString()
                 }
 
             }
             val startPosition = position
 
-            var readCr = 0
             while(!isBufferEmpty()) {
                 val currentByte: Byte = buffer[position++]
                 val bytesToAdd = position - startPosition
                 if (cappedByteBuffer.exceedsMaxCapacity(bytesToAdd)) {
                     throw LineTooLongException("Line exceeds max length of $maxLineLengthInBytes", cappedByteBuffer.toString())
                 }
-                readCr = when(currentByte) {
-                    CARRIAGE_RETURN -> 1
-                    NEW_LINE -> {
-                        cappedByteBuffer.tryAppend(buffer, startPosition, bytesToAdd - (1 + readCr))
-                        return cappedByteBuffer.toString()
-                    }
-                    else ->
-                        0
+                if (currentByte == NEW_LINE) {
+                    cappedByteBuffer.tryAppend(buffer, startPosition, bytesToAdd - 1)
+                    // The CR of a CRLF can arrive in an earlier read than the LF, so it is removed from the line, not from this read
+                    cappedByteBuffer.removeTrailingCarriageReturn()
+                    return cappedByteBuffer.toString()
                 }
             }
 
@@ -114,6 +113,13 @@ private class CappedByteBuffer(val maxCapacity: Int) {
     }
     fun exceedsMaxCapacity(bytesToAdd: Int): Boolean {
         return size + bytesToAdd > maxCapacity
+    }
+    fun isEmpty(): Boolean {
+        return size == 0
+    }
+    fun removeTrailingCarriageReturn() {
+        if (size > 0 && buffer[size - 1] == CARRIAGE_RETURN)
+            size--
     }
     override fun toString(): String {
         return String(buffer, 0, size, Charsets.US_ASCII)
