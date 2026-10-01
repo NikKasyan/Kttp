@@ -4,6 +4,7 @@ import kttp.http.protocol.transfer.ChunkedInputStream
 import kttp.http.protocol.transfer.ChunkingInputStream
 import kttp.http.protocol.transfer.GZIPingInputStream
 import kttp.io.DefaultInputStream
+import kttp.io.LimitedInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -13,16 +14,21 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.InflaterInputStream
 
 
+/**
+ * @param framedBody The body as the message frames it, before content codings are removed.
+ * Reading it to the end reads exactly this message's body from the connection.
+ */
 class HttpBody(
     private val body: InputStream = nullInputStream(),
-    val contentLength: Long? = null
+    val contentLength: Long? = null,
+    private val framedBody: InputStream = body
 ) : DefaultInputStream() {
 
 
     companion object {
         fun fromString(body: String): HttpBody {
-
-            return HttpBody(body.byteInputStream(), body.length.toLong())
+            // Content-Length counts octets, not characters https://www.rfc-editor.org/rfc/rfc9110#section-8.6
+            return fromBytes(body.toByteArray())
         }
 
         fun fromBytes(body: ByteArray): HttpBody {
@@ -40,19 +46,26 @@ class HttpBody(
             val transferEncodings = httpHeaders.transferEncodings()
             if (transferEncodings.isEmpty())
                 return HttpBody(body, httpHeaders.contentLength)
-            return wrapWithTransferDecoding(body, transferEncodings, httpHeaders)
+            return HttpBody(wrapWithTransferDecoding(body, transferEncodings, httpHeaders), httpHeaders.contentLength)
         }
 
+        /**
+         * Reads the body of a message whose header section was just read from [body].
+         * The body length is decided as in https://www.rfc-editor.org/rfc/rfc9112#section-6.3
+         */
         fun withDecoding(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
-            val transferBody =
+            val framedBody =
                 if (httpHeaders.hasTransferEncoding())
                     wrapWithTransferDecoding(body, httpHeaders.transferEncodings(), httpHeaders)
-                else body
+                else if (httpHeaders.hasContentLength())
+                    LimitedInputStream(body, httpHeaders.contentLengthLong())
+                else // Only a response can be without both, it then ends when the connection closes https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.8
+                    body
 
             return if (httpHeaders.hasContentEncoding())
-                wrapWithContentDecoding(transferBody, httpHeaders.contentEncoding())
+                HttpBody(wrapWithContentDecoding(framedBody, httpHeaders.contentEncoding()), framedBody = framedBody)
             else
-                HttpBody(transferBody, httpHeaders.contentLength)
+                HttpBody(framedBody, httpHeaders.contentLength)
         }
 
         fun withEncoding(body: InputStream, httpHeaders: HttpHeaders): HttpBody {
@@ -70,9 +83,23 @@ class HttpBody(
 
 
         fun empty(): HttpBody {
-            return HttpBody()
+            return HttpBody(nullInputStream(), 0)
         }
 
+    }
+
+    /**
+     * The trailer fields sent after a chunked body. They are only complete after the body was read.
+     * They are kept apart from the header fields https://www.rfc-editor.org/rfc/rfc9110#section-6.5.1
+     */
+    val trailers: HttpHeaders
+        get() = (framedBody as? ChunkedInputStream)?.trailers ?: HttpHeaders()
+
+    /**
+     * Reads and drops the rest of the body, so that the next message on the connection is read from its start.
+     */
+    fun discardRemaining() {
+        framedBody.transferTo(OutputStream.nullOutputStream())
     }
 
     fun toDecodedBody(httpHeaders: HttpHeaders): HttpBody {
@@ -168,7 +195,7 @@ private fun wrapWithTransferDecoding(
     body: InputStream,
     transferEncodings: List<TransferEncoding>,
     httpHeaders: HttpHeaders
-): HttpBody {
+): InputStream {
     var currentBody = body
     for (transferEncoding in transferEncodings) {
         currentBody = when (transferEncoding) {
@@ -176,21 +203,19 @@ private fun wrapWithTransferDecoding(
             else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Request not implemented")
         }
     }
-    return HttpBody(currentBody, httpHeaders.contentLength)
+    return currentBody
 }
 
 private fun wrapWithContentDecoding(
     body: InputStream,
     contentEncoding: ContentEncoding
-): HttpBody {
-    var currentBody = body
-    currentBody = when (contentEncoding) {
-        ContentEncoding.GZIP -> GZIPInputStream(currentBody)
-        ContentEncoding.DEFLATE -> InflaterInputStream(currentBody)
+): InputStream {
+    return when (contentEncoding) {
+        ContentEncoding.GZIP -> GZIPInputStream(body)
+        ContentEncoding.DEFLATE -> InflaterInputStream(body)
         ContentEncoding.BR -> throw NotImplementedError("Brotli encoding not implemented")
-        else -> currentBody
+        else -> body
     }
-    return HttpBody(currentBody)
 }
 
 private fun wrapWithContentEncoding(

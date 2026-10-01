@@ -132,6 +132,76 @@ class HttpHeaderTest {
     }
 
     @Test
+    fun headerNames_areCaseInsensitive(){
+        val headers = HttpHeaders(listOf(
+            HttpHeader("content-length" to "5"),
+            HttpHeader("host" to "localhost"),
+        ))
+
+        assertTrue(headers.hasContentLength())
+        assertEquals(5, headers.contentLength)
+        assertEquals("localhost", headers["HOST"])
+        assertEquals("content-length: 5\r\nhost: localhost", headers.toString())
+    }
+
+    @Test
+    fun hostInDifferentCase_countsAsSecondHost(){
+        assertThrows<TooManyHostHeaders> {
+            HttpHeaders(listOf(HttpHeader("host" to "a"), HttpHeader("Host" to "b")))
+        }
+    }
+
+    @Test
+    fun repeatedFieldLines_areCombinedWithComma(){
+        val headers = HttpHeaders(listOf(HttpHeader("Accept" to "text/html"), HttpHeader("accept" to "text/plain")))
+
+        assertEquals("text/html, text/plain", headers.accept())
+        assertEquals(listOf("text/html", "text/plain"), headers.getAll("Accept"))
+    }
+
+    @Test
+    fun repeatedSetCookie_keepsEveryLine(){
+        val headers = HttpHeaders(listOf(HttpHeader("Set-Cookie" to "a=1"), HttpHeader("Set-Cookie" to "b=2")))
+
+        assertEquals(listOf("a=1", "b=2"), headers.getAll("Set-Cookie"))
+        assertEquals("Set-Cookie: a=1\r\nSet-Cookie: b=2", headers.toString())
+    }
+
+    @Test
+    fun repeatedContentLengthWithDifferentValues_isInvalid(){
+        val headers = HttpHeaders(listOf(HttpHeader("Content-Length" to "5"), HttpHeader("Content-Length" to "10")))
+
+        assertThrows<InvalidContentLength> { headers.contentLength }
+    }
+
+    @Test
+    fun contentLengthWithSign_isInvalid(){
+        assertThrows<InvalidContentLength> { HttpHeaders("Content-Length" to "+5").contentLength }
+        assertThrows<InvalidContentLength> { HttpHeaders("Content-Length" to "-5").contentLength }
+    }
+
+    @Test
+    fun listWithoutSpaceAfterComma_isSplit(){
+        val headers = HttpHeaders(
+            "Transfer-Encoding" to "gzip,chunked",
+            "Accept-Language" to "de ,en",
+        )
+
+        assertEquals(listOf("gzip", "chunked"), headers.transferEncodingAsStrings())
+        assertEquals(listOf("de", "en"), headers.acceptLanguageAsList())
+    }
+
+    @Test
+    fun copy_isIndependentOfOriginal(){
+        val headers = HttpHeaders("Accept" to "text/html")
+        val copy = headers.copy()
+        copy.withContentLength(5)
+
+        assertEquals(headers.accept(), copy.accept())
+        assertFalse(headers.hasContentLength())
+    }
+
+    @Test
     fun invalidDate_isNull(){
         val headers = HttpHeaders(listOf(HttpHeader("Date" to "yesterday")))
         assertNull(headers.date())

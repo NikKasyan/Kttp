@@ -8,6 +8,7 @@ import kttp.http.protocol.transfer.chunkString
 import kttp.http.protocol.transfer.chunkStringWithChunkSize
 import kttp.io.EndOfStream
 import kttp.io.IOStream
+import kttp.mock.ioStreamOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.ByteArrayOutputStream
@@ -283,7 +284,7 @@ class HttpRequestHandlerTest {
             outputStream.toByteArray()
         }
         val remoteRequest = PostRequest.from( "http://localhost:8080",
-            HttpHeaders().withContentEncoding(ContentEncoding.DEFLATE),
+            HttpHeaders().withContentEncoding(ContentEncoding.DEFLATE).withContentLength(compressedBody.size.toLong()),
             HttpBody.fromBytes(compressedBody))
 
         val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
@@ -300,7 +301,7 @@ class HttpRequestHandlerTest {
 
         val compressed = gzipCompress(wikiString)
         val remoteRequest = PostRequest.from( "http://localhost:8080",
-            HttpHeaders().withContentEncoding(ContentEncoding.GZIP),
+            HttpHeaders().withContentEncoding(ContentEncoding.GZIP).withContentLength(compressed.size.toLong()),
             HttpBody.fromBytes(compressed))
 
         val ioStream = IOStream(remoteRequest.asStream(), OutputStream.nullOutputStream())
@@ -311,6 +312,95 @@ class HttpRequestHandlerTest {
         val bytes = body.readAllBytes()
         assertEquals(wikiString, bytes.toString(Charsets.US_ASCII))
     }
+
+    private val nextRequest = "GET /next HTTP/1.1\r\nHost: localhost\r\n\r\n"
+
+    @Test
+    fun getWithContentLength_hasBody() {
+        val io = ioStreamOf("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nhello$nextRequest".toByteArray())
+
+        val request = HttpRequestHandler().handleRequest(io)
+
+        assertEquals("hello", request.body.readAsString())
+        assertEquals("/next", HttpRequestHandler().handleRequest(io).uri.path)
+    }
+
+    @Test
+    fun postWithoutContentLengthOrTransferEncoding_hasEmptyBody() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\n\r\n$nextRequest".toByteArray())
+
+        val request = HttpRequestHandler().handleRequest(io)
+
+        assertEquals("", request.body.readAsString())
+        assertEquals("/next", HttpRequestHandler().handleRequest(io).uri.path)
+    }
+
+    @Test
+    fun bodyReadWithBuffer_endsAtContentLength() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nhello$nextRequest".toByteArray())
+
+        val request = HttpRequestHandler().handleRequest(io)
+        val buffer = ByteArray(100)
+
+        assertEquals(5, request.body.read(buffer))
+        assertEquals(-1, request.body.read(buffer))
+        assertEquals("/next", HttpRequestHandler().handleRequest(io).uri.path)
+    }
+
+    @Test
+    fun unreadBody_isDiscarded() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\ncontent-length: 5\r\n\r\nhello$nextRequest".toByteArray())
+
+        HttpRequestHandler().handleRequest(io).body.discardRemaining()
+
+        assertEquals("/next", HttpRequestHandler().handleRequest(io).uri.path)
+    }
+
+    @Test
+    fun unreadGzipBody_isDiscardedUpToContentLength() {
+        // Bytes after the compressed data, but inside the Content-Length, still belong to this body
+        val body = gzipCompress("hello") + "hidden".toByteArray()
+        val io = ioStreamOf(
+            "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Encoding: gzip\r\nContent-Length: ${body.size}\r\n\r\n".toByteArray()
+                    + body + nextRequest.toByteArray())
+
+        val request = HttpRequestHandler().handleRequest(io)
+        assertEquals("hello", request.body.readAsString())
+        request.body.discardRemaining()
+
+        assertEquals("/next", HttpRequestHandler().handleRequest(io).uri.path)
+    }
+
+    @Test
+    fun chunkedBody_isFollowedByNextRequest() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\ntransfer-encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n$nextRequest".toByteArray())
+
+        val request = HttpRequestHandler().handleRequest(io)
+
+        assertEquals("hello", request.body.readAsString())
+        assertEquals("/next", HttpRequestHandler().handleRequest(io).uri.path)
+    }
+
+    @Test
+    fun trailerFields_areNotMergedIntoTheHeaders() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\nExpires: never\r\n\r\n".toByteArray())
+
+        val request = HttpRequestHandler().handleRequest(io)
+        request.body.readAllBytes()
+
+        assertEquals("never", request.body.trailers["Expires"])
+        assertEquals(null, request.headers["Expires"])
+    }
+
+    @Test
+    fun transferEncodingWithoutFinalChunked_throwsInvalidTransferEncoding() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: identity\r\n\r\nhello".toByteArray())
+
+        assertThrows<InvalidTransferEncoding> {
+            HttpRequestHandler().handleRequest(io)
+        }
+    }
+
     fun gzipCompress(input: String): ByteArray {
         val outputStream = ByteArrayOutputStream()
         GZIPOutputStream(outputStream).use { gzipOutputStream ->

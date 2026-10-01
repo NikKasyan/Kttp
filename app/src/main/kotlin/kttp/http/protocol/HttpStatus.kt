@@ -71,6 +71,10 @@ enum class HttpStatus(val code: Int, private val msg: String = "") {
     val isServerError: Boolean
         get() = code in 500..599
 
+    // 1xx, 204 and 304 responses never have content https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.1
+    val allowsContent: Boolean
+        get() = !isInformational && code != 204 && code != 304
+
 
     companion object {
         fun byCode(code: Int): HttpStatus {

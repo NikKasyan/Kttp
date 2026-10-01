@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 
 //@Timeout(5, unit = TimeUnit.SECONDS)
@@ -58,7 +59,8 @@ class ChunkedInputstreamTest {
         val bytes = chunkedInputStream.readAllBytes()
 
         assertEquals(wikiString, bytes.toString(Charsets.US_ASCII))
-        assertEquals("Wed, 21 Oct 2015 07:28:00 GMT", httpHeaders["Expires"])
+        assertEquals("Wed, 21 Oct 2015 07:28:00 GMT", chunkedInputStream.trailers["Expires"])
+        assertFalse(httpHeaders.has("Expires"))
         assertEquals(wikiString.length, httpHeaders.contentLength())
     }
 
@@ -83,9 +85,10 @@ class ChunkedInputstreamTest {
         val bytes = chunkedInputStream.readAllBytes()
 
         assertEquals(wikiString, bytes.toString(Charsets.US_ASCII))
-        assertEquals("Wed, 21 Oct 2015 07:28:00 GMT", httpHeaders["Expires"])
-        assertEquals("1234567890", httpHeaders["SHA-256"])
-        assertEquals("me", httpHeaders["Ignore"])
+        assertEquals("Wed, 21 Oct 2015 07:28:00 GMT", chunkedInputStream.trailers["Expires"])
+        assertEquals("1234567890", chunkedInputStream.trailers["SHA-256"])
+        assertEquals("me", chunkedInputStream.trailers["Ignore"])
+        assertFalse(httpHeaders.has("Expires"))
         assertNotEquals(1234, httpHeaders.contentLength)
     }
 
@@ -195,8 +198,9 @@ class ChunkedInputstreamTest {
 
         assertEquals(payload.length, bytes.size)
         assertEquals(payload, bytes.toString(Charsets.US_ASCII))
-        assertEquals("Test", headers["Test"])
-        assertEquals("de", headers.accept())
+        assertEquals("Test", chunkedInputStream.trailers["Test"])
+        assertEquals("de", chunkedInputStream.trailers.accept())
+        assertFalse(headers.has("Test"))
 
 
     }
@@ -301,6 +305,39 @@ class ChunkedInputstreamTest {
 
         assertEquals("", bytes.toString(Charsets.US_ASCII))
 
+    }
+
+    @Test
+    fun chunkSizeThatOverflowsAnInt_shouldThrowInvalidChunkSize() {
+        // 0x111111120 is read as 0x11111120 when the overflow goes unnoticed
+        val stream = "111111120\r\nabc\r\n0\r\n\r\n".byteInputStream()
+
+        val chunkedInputStream = ChunkedInputStream(stream)
+
+        assertThrows<InvalidChunkSize> {
+            chunkedInputStream.readAllBytes()
+        }
+    }
+
+    @Test
+    fun chunkSizeWithoutDigits_shouldThrowInvalidChunkSize() {
+        val stream = "\r\n\r\n".byteInputStream()
+
+        val chunkedInputStream = ChunkedInputStream(stream)
+
+        assertThrows<InvalidChunkSize> {
+            chunkedInputStream.readAllBytes()
+        }
+    }
+
+    @Test
+    fun chunkedInputStream_shouldNotReadPastTheLastChunk() {
+        val stream = "3\r\nabc\r\n0\r\nExpires: never\r\n\r\nGET /next HTTP/1.1\r\n".byteInputStream()
+
+        val chunkedInputStream = ChunkedInputStream(stream)
+
+        assertEquals("abc", chunkedInputStream.readAllBytes().toString(Charsets.US_ASCII))
+        assertEquals("GET /next HTTP/1.1\r\n", stream.readAllBytes().toString(Charsets.US_ASCII))
     }
 
 }

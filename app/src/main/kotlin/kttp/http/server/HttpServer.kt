@@ -161,6 +161,8 @@ class HttpServer(
 
                 respond(httpRequest, clientConnection)
 
+                // The next request starts after this request's body, also if the handler didn't read it
+                httpRequest.body.discardRemaining()
             }
         } catch (e: EndOfStream) {
             log.debug { "End of Stream" }
@@ -206,6 +208,9 @@ class HttpServer(
             body = exception.message ?: "No message"
         )
 
+        // A body length that can't be determined must be answered with 400 https://www.rfc-editor.org/rfc/rfc9112#section-6.3
+        is InvalidContentLength,
+        is InvalidTransferEncoding,
         is HeaderNameEndsWithWhiteSpace,
         is InvalidHttpRequestLine,
         is HeaderStartsWithWhiteSpace,
@@ -231,6 +236,8 @@ class HttpServer(
         val httpExchange = HttpExchange(httpRequest, createDefaultResponseHeaders(httpRequest), clientConnection.io)
         try {
             httpRequestHandler.handle(httpExchange)
+            // Ends a response the handler started with write, or sends one if the handler sent nothing
+            httpExchange.close()
         } catch (e: Exception) {
             respondWithError(clientConnection, e)
         }

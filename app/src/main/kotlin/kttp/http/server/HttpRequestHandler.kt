@@ -19,7 +19,7 @@ class HttpRequestHandler {
         if (!headers.hasHost())
             throw MissingHostHeader()
 
-        val body = readBody(io, requestLine, headers)
+        val body = readBody(io, headers)
 
         return HttpRequest(requestLine, headers, body)
     }
@@ -47,11 +47,18 @@ class HttpRequestHandler {
     }
 
 
-    private fun readBody(io: IOStream, requestLine: RequestLine, headers: HttpHeaders): HttpBody {
+    // Request message framing is independent of method semantics https://www.rfc-editor.org/rfc/rfc9112#section-6-4
+    private fun readBody(io: IOStream, headers: HttpHeaders): HttpBody {
 
-        val body = if (requestLine.method.allowsBody())
-            HttpBody.withDecoding(io, headers)
-        else HttpBody.empty()
+        // A request without Transfer-Encoding and Content-Length has no content https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7
+        if (!headers.hasTransferEncoding() && !headers.hasContentLength())
+            return HttpBody.empty()
+
+        // Without chunked as the final coding the length of a request can't be known https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4
+        if (headers.hasTransferEncoding() && headers.transferEncodings().last() != TransferEncoding.CHUNKED)
+            throw InvalidTransferEncoding("chunked must be the final transfer coding of a request")
+
+        val body = HttpBody.withDecoding(io, headers)
 
         log.debug { "Body: $body" }
         return body

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test
 import java.net.Socket
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class HttpServerResponseTest {
     private val port = 8080
@@ -113,6 +114,42 @@ class HttpServerResponseTest {
         assertEquals(headers.contentLength, body.size.toLong())
         // The server closes the connection after an error, so nothing may follow the body
         assertEquals(0, client.io.readAllBytes().size)
+    }
+
+    private val hiddenRequest = "GET /hidden HTTP/1.1\r\nHost: localhost:8080\r\n\r\n"
+
+    private fun sendSecondRequestAndReadAllResponses(): String {
+        client.io.write("GET /second HTTP/1.1\r\nHost: localhost:8080\r\nConnection: close\r\n\r\n")
+        return client.io.readAllBytes().toString(Charsets.US_ASCII)
+    }
+
+    @Test
+    fun unreadPostBody_isNotParsedAsRequest(){
+        client.io.write("POST /unknown HTTP/1.1\r\nHost: localhost:8080\r\nContent-Length: ${hiddenRequest.length}\r\n\r\n$hiddenRequest")
+
+        val responses = sendSecondRequestAndReadAllResponses()
+
+        assertEquals(2, Regex("HTTP/1.1 404").findAll(responses).count())
+        assertFalse(responses.contains("/hidden"))
+    }
+
+    @Test
+    fun getBody_isNotParsedAsRequest(){
+        client.io.write("GET /unknown HTTP/1.1\r\nHost: localhost:8080\r\nContent-Length: ${hiddenRequest.length}\r\n\r\n$hiddenRequest")
+
+        val responses = sendSecondRequestAndReadAllResponses()
+
+        assertEquals(2, Regex("HTTP/1.1 404").findAll(responses).count())
+        assertFalse(responses.contains("/hidden"))
+    }
+
+    @Test
+    fun differentContentLengths_getBadRequest(){
+        client.io.write("POST / HTTP/1.1\r\nHost: localhost:8080\r\nContent-Length: 5\r\nContent-Length: 10\r\n\r\nhello")
+
+        val statusLine = StatusLine(client.io.readLine())
+
+        assertEquals(HttpStatus.BAD_REQUEST, statusLine.status)
     }
 
     @AfterEach

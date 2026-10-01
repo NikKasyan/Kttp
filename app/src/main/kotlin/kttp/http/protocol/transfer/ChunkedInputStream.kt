@@ -18,7 +18,15 @@ class ChunkedInputStream(
 
     private var chunkSize = 0
 
+    private var chunkSizeDigits = 0
+
     private var state = ChunkingState.CHUNK_SIZE
+
+    /**
+     * The trailer fields after the last chunk. They are kept apart from the header fields
+     * https://www.rfc-editor.org/rfc/rfc9110#section-6.5.1
+     */
+    val trailers = HttpHeaders()
 
     private var contentLength = 0L
 
@@ -26,6 +34,11 @@ class ChunkedInputStream(
     private var chunkExtensionPosition = 0
 
     private val headerBytes = ByteBuffer(2050)
+    // The next message on the connection follows directly after the chunked body, so only chunk data is read in blocks
+    override fun maxBytesToRead(): Int {
+        return if (state == ChunkingState.CHUNK_DATA && chunkSize > 0) chunkSize else 1
+    }
+
     override fun canTransform(): Boolean {
         if((state == ChunkingState.CHUNK_DATA || state == ChunkingState.CHUNK_SIZE) && isStreamFinished)
             return false
@@ -62,20 +75,20 @@ class ChunkedInputStream(
         chunkExtensionPosition = 0
         while (!buffer.isFullyRead()) {
             val byte = buffer.readByte()
-            if (byte == CARRIAGE_RETURN) {
-                state = ChunkingState.CHUNK_SIZE_EOL
+            if (byte == CARRIAGE_RETURN || byte == SEMICOLON) {
+                // chunk-size = 1*HEXDIG https://www.rfc-editor.org/rfc/rfc9112#section-7.1
+                if (chunkSizeDigits == 0)
+                    throw InvalidChunkSize("Chunk size must have at least one hexadecimal digit")
+                state = if (byte == CARRIAGE_RETURN) ChunkingState.CHUNK_SIZE_EOL else ChunkingState.CHUNK_SIZE_EXT
                 break
             }
-            if (byte == SEMICOLON) {
-                state = ChunkingState.CHUNK_SIZE_EXT
-                break
-            }
-            val prevChunkSize = chunkSize
-            chunkSize = chunkSize * 16 + parseSingleHexDigit(byte)
-
-            if (prevChunkSize > chunkSize) {
+            val digit = parseSingleHexDigit(byte)
+            // Recipients must prevent an integer overflow https://www.rfc-editor.org/rfc/rfc9112#section-7.1
+            if (chunkSize > (Int.MAX_VALUE - digit) / 16) {
                 throw InvalidChunkSize("Chunk size too big")
             }
+            chunkSize = chunkSize * 16 + digit
+            chunkSizeDigits++
         }
     }
 
@@ -114,6 +127,7 @@ class ChunkedInputStream(
     private fun parseChunkSizeEol() {
         val byte = buffer.readByte()
         if (byte == NEW_LINE) {
+            chunkSizeDigits = 0
             state = if (chunkSize == 0) {
                 ChunkingState.TRAILERS
             } else {
@@ -171,7 +185,7 @@ class ChunkedInputStream(
                 return
             }
             state = ChunkingState.TRAILERS
-            httpHeaders.add(headerBytes.toString())
+            trailers.add(headerBytes.toString())
             headerBytes.clear()
         } else {
             throw InvalidTrailer("Expected new line after trailers, but got $byte")

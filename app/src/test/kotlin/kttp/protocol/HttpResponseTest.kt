@@ -3,6 +3,7 @@ package kttp.protocol
 import kttp.http.protocol.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import kotlin.test.Test
+import kotlin.test.assertFalse
 
 class HttpResponseTest {
 
@@ -63,5 +64,46 @@ class HttpResponseTest {
         val expectedResponse = expectedStatusLine + expectedHeaders + bodyString
 
         assertEquals(expectedResponse, response.toString())
+    }
+
+    @Test
+    fun nonAsciiBody_hasContentLengthInBytes() {
+        val response = HttpResponse.ok(body = "äöü")
+
+        assertEquals(6, response.headers.contentLength)
+        assertEquals(6, HttpBody.fromString("äöü").contentLength)
+    }
+
+    @Test
+    fun bodyWithUnknownLength_isSentChunked() {
+        val response = HttpResponse.ok(body = HttpBody("Hello".byteInputStream()))
+
+        assertEquals(TransferEncoding.CHUNKED, response.headers.transferEncoding)
+        assertFalse(response.headers.hasContentLength())
+    }
+
+    @Test
+    fun emptyBody_hasContentLengthZero() {
+        val response = HttpResponse.badRequest()
+
+        assertEquals(0, response.headers.contentLength)
+    }
+
+    @Test
+    fun responseWithoutContent_hasNoFraming() {
+        val response = HttpResponse.fromStatus(HttpStatus.SWITCHING_PROTOCOLS)
+
+        assertFalse(response.headers.hasContentLength())
+        assertFalse(response.headers.hasTransferEncoding())
+    }
+
+    @Test
+    fun fromStatus_doesNotChangeTheGivenHeaders() {
+        val headers = HttpHeaders().withContentEncoding(ContentEncoding.GZIP)
+
+        HttpResponse.ok(headers, body = "Hello")
+
+        assertFalse(headers.hasTransferEncoding())
+        assertFalse(headers.hasContentLength())
     }
 }

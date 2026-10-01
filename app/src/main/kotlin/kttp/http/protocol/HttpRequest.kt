@@ -24,8 +24,6 @@ class HttpRequest(
             throw MissingHostHeader()
         if(headers.hasTe(TransferEncoding.CHUNKED)) // https://www.rfc-editor.org/rfc/rfc9112#section-7.4-2
             throw InvalidTransferEncoding("TE may not be set to chunked in a request as the server should always support it")
-        if(body.hasContentLength() && !headers.hasContentLength())
-            headers.withContentLength(body.contentLength!!)
 
 
         uri = combineToRequestUri(headers.host(), requestLine.uri)
@@ -37,6 +35,8 @@ class HttpRequest(
             // Only an absolute URI has a host to take the Host header from
             if(!httpHeaders.hasHost() && uri.host != null)
                 httpHeaders.withHost(uri)
+            if(body.hasContentLength() && !httpHeaders.hasContentLength())
+                httpHeaders.withContentLength(body.contentLength!!)
 
             return HttpRequest(RequestLine(method, uri), httpHeaders, body)
         }

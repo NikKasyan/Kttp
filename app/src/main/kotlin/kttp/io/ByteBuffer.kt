@@ -62,8 +62,8 @@ class ByteBuffer(private val buffer: ByteArray,
         return bytesToCopy
     }
 
-    fun fillWith(inputStream: InputStream) {
-        val bytesToRead = this.capacity
+    fun fillWith(inputStream: InputStream, maxBytes: Int = Int.MAX_VALUE) {
+        val bytesToRead = minOf(this.capacity, maxBytes)
         val readBytes = inputStream.read(buffer, length, bytesToRead)
         length += readBytes
     }

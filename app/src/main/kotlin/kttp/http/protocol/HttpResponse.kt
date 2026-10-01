@@ -28,26 +28,30 @@ class HttpResponse(val statusLine: StatusLine, val headers: HttpHeaders, val bod
             return fromStatus(HttpStatus.FORBIDDEN, headers, body)
         }
 
+        /**
+         * Adds Content-Length or Transfer-Encoding, so the client can tell where the response ends
+         * https://www.rfc-editor.org/rfc/rfc9112#section-6.3
+         * The given headers are copied and not changed.
+         */
         fun fromStatus(
             httpStatus: HttpStatus,
             headers: HttpHeaders = HttpHeaders(),
-            body: HttpBody = HttpBody()
+            body: HttpBody = HttpBody.empty()
         ): HttpResponse {
             val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
-            if (!headers.hasContentLength() && body.hasContentLength() && !headers.hasContentEncoding())
-                headers.withContentLength(body.contentLength!!)
-            else if(!headers.hasContentLength() && headers.hasContentEncoding())
-                headers.withTransferEncoding(TransferEncoding.CHUNKED)
-            return HttpResponse(statusLine, headers, body)
+            val responseHeaders = headers.copy()
+            if (!httpStatus.allowsContent || responseHeaders.hasContentLength() || responseHeaders.hasTransferEncoding())
+                return HttpResponse(statusLine, responseHeaders, body)
+            // A content coding changes the length, so it is only known for a body that is sent as it is
+            if (body.hasContentLength() && !responseHeaders.hasContentEncoding())
+                responseHeaders.withContentLength(body.contentLength!!)
+            else
+                responseHeaders.withTransferEncoding(TransferEncoding.CHUNKED)
+            return HttpResponse(statusLine, responseHeaders, body)
         }
 
         fun fromStatus(httpStatus: HttpStatus, headers: HttpHeaders = HttpHeaders(), body: String): HttpResponse {
-            val statusLine = StatusLine(HttpVersion.DEFAULT_VERSION, httpStatus)
-            if (!headers.hasContentLength() && !headers.hasContentEncoding())
-                headers.withContentLength(body.length.toLong())
-            else if(!headers.hasContentLength() && headers.hasContentEncoding())
-                headers.withTransferEncoding(TransferEncoding.CHUNKED)
-            return HttpResponse(statusLine, headers, HttpBody.fromString(body))
+            return fromStatus(httpStatus, headers, HttpBody.fromString(body))
         }
 
         fun ok(headers: HttpHeaders = HttpHeaders(), body: HttpBody = HttpBody.empty()): HttpResponse {

@@ -18,6 +18,12 @@ abstract class TransformingInputStream(private val inputStream: InputStream) : D
 
     abstract fun transform()
     abstract fun canTransform(): Boolean
+
+    /**
+     * The most bytes to read from the input stream at once.
+     * A stream that must not read past its own end in the input stream overrides this.
+     */
+    protected open fun maxBytesToRead(): Int = Int.MAX_VALUE
     override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
         val readBytesFromBuffer = readFromInternalBuffer(bytes, offset, length)
         if (readBytesFromBuffer == length) {
@@ -51,7 +57,7 @@ abstract class TransformingInputStream(private val inputStream: InputStream) : D
         ) {
             if (buffer.isFullyRead() && !isStreamFinished) {
                 buffer.clear()
-                buffer.fillWith(inputStream)
+                buffer.fillWith(inputStream, maxBytesToRead())
                 if (buffer.length == -1) {
                     if (!canTransform())
                         break

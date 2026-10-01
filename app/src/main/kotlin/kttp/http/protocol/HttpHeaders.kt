@@ -256,10 +256,49 @@ fun checkHeaderNotContainsBareCR(header: HttpHeader) {
         throw InvalidHeaderStructure("Header value may not contain a bare CR")
 }
 
-//Todo: Handle multiple Headers https://www.rfc-editor.org/rfc/rfc9110#name-field-lines-and-combined-fi
+/**
+ * Stores the field lines of a header section.
+ * Field names are case-insensitive https://www.rfc-editor.org/rfc/rfc9110#section-5.1
+ * so fields are stored by their lower-case name, and the name as first given is kept for output.
+ * A field can be sent in several field lines https://www.rfc-editor.org/rfc/rfc9110#section-5.3
+ * so every field keeps a list of values.
+ */
+private class FieldLines {
+    private class Field(val name: String, val values: MutableList<String>)
+
+    private val fields = LinkedHashMap<String, Field>()
+
+    // Field lines with the same name are combined in order, separated by a comma https://www.rfc-editor.org/rfc/rfc9110#section-5.3
+    operator fun get(name: String): String? = fields[name.lowercase()]?.values?.joinToString(", ")
+
+    operator fun set(name: String, value: String) {
+        fields[name.lowercase()] = Field(name, mutableListOf(value))
+    }
+
+    fun add(name: String, value: String) {
+        fields.getOrPut(name.lowercase()) { Field(name, mutableListOf()) }.values.add(value)
+    }
+
+    fun values(name: String): List<String> = fields[name.lowercase()]?.values?.toList() ?: emptyList()
+
+    fun containsKey(name: String): Boolean = fields.containsKey(name.lowercase())
+
+    fun remove(name: String) {
+        fields.remove(name.lowercase())
+    }
+
+    fun lines(): List<HttpHeader> = fields.values.flatMap { field -> field.values.map { HttpHeader(field.name, it) } }
+
+    private fun valuesByName(): Map<String, List<String>> = fields.mapValues { it.value.values }
+
+    override fun equals(other: Any?): Boolean = other is FieldLines && valuesByName() == other.valuesByName()
+
+    override fun hashCode(): Int = valuesByName().hashCode()
+}
+
 class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeader> {
 
-    private val headers: MutableMap<String, String> = headers.toMutableMap()
+    private val headers = FieldLines().apply { headers.forEach { (name, value) -> set(name, value) } }
 
     constructor(vararg headers: Pair<String, String>) : this() {
         add(*headers)
@@ -274,7 +313,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     override fun iterator(): Iterator<HttpHeader> {
-        return headers.map { HttpHeader(it.key, it.value) }.iterator()
+        return headers.lines().iterator()
     }
 
     operator fun set(key: String, value: String) {
@@ -282,6 +321,12 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     operator fun get(key: String): String? = headers[key]
+
+    /**
+     * Returns the value of every field line with this name.
+     * Needed for fields such as Set-Cookie, which can't be combined into one line https://www.rfc-editor.org/rfc/rfc9110#section-5.3
+     */
+    fun getAll(key: String): List<String> = headers.values(key)
 
     fun remove(key: String) {
         headers.remove(key)
@@ -295,10 +340,10 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun add(header: HttpHeader): HttpHeaders {
-        if (header.key == CommonHeaders.HOST && hasHost()) // https://www.rfc-editor.org/rfc/rfc9112#section-3.2-6
+        if (header.key.equals(CommonHeaders.HOST, ignoreCase = true) && hasHost()) // https://www.rfc-editor.org/rfc/rfc9112#section-3.2-6
             throw TooManyHostHeaders()
         checkHeaderNotContainsBareCR(header) // https://www.rfc-editor.org/rfc/rfc9112#name-message-parsing
-        headers[header.key] = header.value
+        headers.add(header.key, header.value)
         return this
     }
 
@@ -349,21 +394,23 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun contentLengthLong(): Long {
-        return contentLengthAsString().toLongOrNull() ?: contentLengthFromList()
+        // A list of identical values may be accepted, differing values must be rejected https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
+        val contentLengths = contentLengthAsString().split(",").map { parseContentLength(it.trim()) }
+        val distinctContentLengths = contentLengths.distinct()
+        if (distinctContentLengths.size > 1)
+            throw InvalidContentLength("Content-Length must be the same for all parts")
+        return distinctContentLengths.first()
+    }
+
+    // Content-Length = 1*DIGIT https://www.rfc-editor.org/rfc/rfc9110#section-8.6
+    private fun parseContentLength(contentLength: String): Long {
+        if (contentLength.isEmpty() || !contentLength.all { it in '0'..'9' })
+            throw InvalidContentLength("Content-Length must be a number")
+        return contentLength.toLongOrNull() ?: throw InvalidContentLength("Content-Length is too big")
     }
 
     fun contentLengthAsString(): String {
         return headers[CommonHeaders.CONTENT_LENGTH]!!
-    }
-
-    private fun contentLengthFromList(): Long {
-        val contentLengths = contentLengthAsString().split(",").map { it.trim().toLongOrNull() }
-        if (contentLengths.any { it == null })
-            throw InvalidContentLength("Content-Length must be a number")
-        val distinctContentLengths = contentLengths.distinct()
-        if (distinctContentLengths.size > 1)
-            throw InvalidContentLength("Content-Length must be the same for all parts")
-        return distinctContentLengths.first()!!
     }
 
     fun removeContentLength() {
@@ -452,7 +499,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun acceptLanguageAsList(): List<String> {
-        return acceptLanguage().split(", ").map { it.trim() }
+        return splitList(acceptLanguage())
     }
 
     var transferEncoding: TransferEncoding?
@@ -484,7 +531,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun transferEncodingAsStrings(): List<String> {
-        return transferEncodingAsString().split(", ").map { it.trim() }
+        return splitList(transferEncodingAsString())
     }
 
     fun transferEncodings(): List<TransferEncoding> {
@@ -524,7 +571,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun teAsStrings(): List<String> {
-        return teAsString().split(", ").map { it.trim() }
+        return splitList(teAsString())
     }
 
     fun teEncodings(): List<TransferEncoding> {
@@ -653,8 +700,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     fun connectionAsStrings(): List<String> {
         if (!hasConnection())
             return emptyList()
-        // Empty list elements must be ignored https://www.rfc-editor.org/rfc/rfc9110#section-5.6.1.2
-        return connectionAsString().split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        return splitList(connectionAsString())
     }
 
     fun connectionAsString(): String {
@@ -915,7 +961,7 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
     }
 
     fun toList(): List<HttpHeader> {
-        return headers.toList().map { HttpHeader(it) }
+        return headers.lines()
     }
 
     override fun toString(): String {
@@ -937,13 +983,25 @@ class HttpHeaders(headers: Map<String, String> = HashMap()) : Iterable<HttpHeade
         return headers.hashCode()
     }
 
-    fun addMissingHeaders(headers: HttpHeaders) {
-        headers.forEach {
-            if (!has(it.key))
-                add(it)
-        }
+    fun copy(): HttpHeaders {
+        return HttpHeaders(toList())
     }
 
+    fun addMissingHeaders(headers: HttpHeaders) {
+        // Collected first, so that every line of a field with several lines is added
+        val missingHeaders = headers.filter { !has(it.key) }
+        add(missingHeaders)
+    }
+
+}
+
+/**
+ * Splits a list-based field value at its commas.
+ * Whitespace around the comma is optional https://www.rfc-editor.org/rfc/rfc9110#section-5.6.1
+ * and empty list elements must be ignored https://www.rfc-editor.org/rfc/rfc9110#section-5.6.1.2
+ */
+private fun splitList(value: String): List<String> {
+    return value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 }
 
 private val tokenRegex = Regex("[A-Za-z0-9!#$%&'*+\\-.^_`|~]+")
@@ -1026,6 +1084,9 @@ private fun checkHeaders(headers: HttpHeaders) {
     // https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
     if(headers.hasContentLength() && headers.hasTransferEncoding())
         throw InvalidHeaderStructure("Cannot have both Content-Length and Transfer-Encoding")
+    // Repeated Transfer-Encoding lines are combined, so chunked could now appear twice https://www.rfc-editor.org/rfc/rfc9112#section-6.1-4
+    if(headers.hasTransferEncoding())
+        checkTransferEncoding(headers.transferEncodings())
     if(headers.hasTransferEncoding()
         && headers.transferEncodings().contains(TransferEncoding.CHUNKED)
         && headers.transferEncodings().last() != TransferEncoding.CHUNKED)
