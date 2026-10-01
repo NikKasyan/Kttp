@@ -155,9 +155,13 @@ object SSL {
             .getCertificate(certificate)
     }
     fun getSecureSocketFactory(verifyCertificates: Boolean): SSLSocketFactory {
-        val allTrustingContext = SSLContext.getInstance("TLS")
-        allTrustingContext.init(null, arrayOf(AllTrustManager()), SecureRandom())
-        return if (verifyCertificates) SSLContext.getDefault().socketFactory else allTrustingContext.socketFactory
+        return if (verifyCertificates)
+            SSLContext.getDefault().socketFactory
+        else {
+            val allTrustingContext = SSLContext.getInstance("TLS")
+            allTrustingContext.init(null, arrayOf(AllTrustManager()), SecureRandom())
+            allTrustingContext.socketFactory
+        }
     }
 
 
