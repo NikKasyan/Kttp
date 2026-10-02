@@ -21,16 +21,16 @@ class RequestLine {
         checkRequestLineNotContainsBareCR(methodString, path, httpVersionString)
 
         method = Method.byName(methodString)
-        uri = normalizeIfPathIsNotAbsolute(URIUtil.parseURI(path))
+        uri = normalizeIfPathIsNotAbsolute(URIUtil.parseRequestTarget(method, path))
         httpVersion = HttpVersion(httpVersionString)
-        this.parameters.addFromQuery(uri.query)
+        this.parameters.addFromQuery(uri.rawQuery)
     }
 
     constructor(method: Method, uri: URI, httpVersion: HttpVersion = HttpVersion.DEFAULT_VERSION) {
         this.method = method
         this.uri = normalizeIfPathIsNotAbsolute(uri)
         this.httpVersion = httpVersion
-        this.parameters.addFromQuery(this.uri.query)
+        this.parameters.addFromQuery(this.uri.rawQuery)
     }
 
     constructor(method: Method, uri: String, httpVersion: HttpVersion) : this(method, URI(uri), httpVersion)
@@ -39,8 +39,21 @@ class RequestLine {
         return "$method ${requestTarget()} $httpVersion\r\n"
     }
 
+    // https://www.rfc-editor.org/rfc/rfc9112#section-3.2.3
+    val isAuthorityForm: Boolean
+        get() = method == Method.CONNECT
+
+    // https://www.rfc-editor.org/rfc/rfc9112#section-3.2.4
+    val isAsteriskForm: Boolean
+        get() = uri.toString() == URIUtil.ASTERISK_FORM
+
     private fun requestTarget(): String {
-        val path = uri.path
+        if (isAuthorityForm)
+            return uri.rawAuthority
+        if (isAsteriskForm)
+            return URIUtil.ASTERISK_FORM
+        // The path is sent as it is encoded, the decoded path could contain spaces
+        val path = uri.rawPath
         return if (parameters.isEmpty()) path else "$path?$parameters"
     }
 

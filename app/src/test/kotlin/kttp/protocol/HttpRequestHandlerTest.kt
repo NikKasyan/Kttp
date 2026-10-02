@@ -401,6 +401,77 @@ class HttpRequestHandlerTest {
         }
     }
 
+    private fun requestWithHost(target: String, host: String, secure: Boolean = false): HttpRequest {
+        val io = ioStreamOf("$target HTTP/1.1\r\nHost: $host\r\n\r\n".toByteArray())
+        return HttpRequestHandler().handleRequest(io, secure)
+    }
+
+    @Test
+    fun absoluteFormTarget_ignoresHost() {
+        assertEquals(URI("http://example.com/x"), requestWithHost("GET http://example.com/x", "localhost").uri)
+    }
+
+    @Test
+    fun requestOverTls_hasHttpsScheme() {
+        assertEquals(URI("https://localhost:8443/x"), requestWithHost("GET /x", "localhost:8443", secure = true).uri)
+    }
+
+    @Test
+    fun asteriskFormTarget_hasEmptyPath() {
+        assertEquals(URI("http://localhost:8080"), requestWithHost("OPTIONS *", "localhost:8080").uri)
+    }
+
+    @Test
+    fun authorityFormTarget_isTheAuthority() {
+        assertEquals(URI("http://example.com:443"), requestWithHost("CONNECT example.com:443", "example.com:443").uri)
+    }
+
+    @Test
+    fun dotSegmentsInPath_areRemoved() {
+        assertEquals("/b", requestWithHost("GET /a/../b", "localhost").uri.path)
+    }
+
+    @Test
+    fun ipv6Host_isValid() {
+        val uri = requestWithHost("GET /", "[::1]:8080").uri
+        assertEquals("[::1]", uri.host)
+        assertEquals(8080, uri.port)
+    }
+
+    @Test
+    fun hostWithInvalidPortOrUserInfo_isInvalid() {
+        assertThrows<InvalidHost> { requestWithHost("GET /", "example.com:abc") }
+        assertThrows<InvalidHost> { requestWithHost("GET /", "user@example.com") }
+        assertThrows<InvalidHost> { requestWithHost("GET /", "example.com/path") }
+    }
+
+    @Test
+    fun http2Request_isNotSupported() {
+        val io = ioStreamOf("GET / HTTP/2.0\r\nHost: localhost\r\n\r\n".toByteArray())
+
+        assertThrows<HttpVersionNotSupported> {
+            HttpRequestHandler().handleRequest(io)
+        }
+    }
+
+    @Test
+    fun brotliContentEncoding_isUnsupported() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\nContent-Encoding: br\r\nContent-Length: 0\r\n\r\n".toByteArray())
+
+        assertThrows<UnsupportedContentEncoding> {
+            HttpRequestHandler().handleRequest(io)
+        }
+    }
+
+    @Test
+    fun invalidChunkSize_isInvalidHttpRequest() {
+        val io = ioStreamOf("POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\nhello\r\n0\r\n\r\n".toByteArray())
+
+        assertThrows<InvalidHttpRequest> {
+            HttpRequestHandler().handleRequest(io).body.readAllBytes()
+        }
+    }
+
     fun gzipCompress(input: String): ByteArray {
         val outputStream = ByteArrayOutputStream()
         GZIPOutputStream(outputStream).use { gzipOutputStream ->

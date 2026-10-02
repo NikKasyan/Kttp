@@ -1,9 +1,9 @@
 package kttp.http.protocol.transfer
 
 import kttp.http.protocol.HttpHeaders
+import kttp.http.protocol.InvalidHttpRequest
 import kttp.io.*
 import java.io.InputStream
-import java.lang.RuntimeException
 
 /**
  * A stream that reads chunked data from an input stream and converts it to a stream with the data unchunked.
@@ -194,7 +194,7 @@ class ChunkedInputStream(
 
 }
 
-open class InvalidChunkedStream(msg: String) : RuntimeException(msg)
+open class InvalidChunkedStream(msg: String) : InvalidHttpRequest(msg)
 
 
 class InvalidChunkSize(msg: String) : InvalidChunkedStream(msg)

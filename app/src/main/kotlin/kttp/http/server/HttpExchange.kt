@@ -1,5 +1,6 @@
 package kttp.http.server
 
+import kttp.http.protocol.Connection
 import kttp.http.protocol.HttpHeaders
 import kttp.http.protocol.HttpRequest
 import kttp.http.protocol.HttpResponse
@@ -21,7 +22,21 @@ class HttpExchange(
     private var closed = false
     // The body is written with write(...) as it comes, in chunks
     private var isStreaming = false
+    // The response whose status line and headers were sent
+    private var sentResponse: HttpResponse? = null
     var response: HttpResponse = HttpResponse.ok(defaultHeaders)
+
+    /**
+     * Whether the status line and headers were sent. After that, no other response can be sent for this request.
+     */
+    val hasStartedResponse: Boolean
+        get() = headerWritten
+
+    val switchedProtocols: Boolean
+        get() = sentResponse?.statusLine?.status == HttpStatus.SWITCHING_PROTOCOLS
+
+    val closesConnection: Boolean
+        get() = sentResponse?.headers?.hasConnection(Connection.CLOSE) == true
 
     // A response to HEAD has the header section of a GET response, but no content https://www.rfc-editor.org/rfc/rfc9110#section-9.3.2
     private val sendsContent: Boolean
@@ -40,6 +55,7 @@ class HttpExchange(
         io.write(response.headers.toString())
         io.write("\r\n\r\n")
         headerWritten = true
+        sentResponse = response
     }
 
     /**

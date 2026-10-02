@@ -11,9 +11,11 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicInteger
 
 
@@ -38,9 +40,12 @@ data class ReqHandler(private var _path: String, val methods: EnumSet<Method>, v
         get() = _path
 }
 
+/**
+ * @param executorService Runs the connections. Without one, the server creates its own from [HttpServerOptions.maxConcurrentConnections].
+ */
 class HttpServer(
     private val httpServerOptions: HttpServerOptions = HttpServerOptions.DEFAULT,
-    private val executorService: ExecutorService = Executors.newFixedThreadPool(httpServerOptions.maxConcurrentConnections)
+    executorService: ExecutorService? = null
 ) {
 
     constructor(port: Int) : this(HttpServerOptions(port = port))
@@ -59,15 +64,23 @@ class HttpServer(
     constructor(port: Int, secure: Boolean) : this(HttpServerOptions(port = port, secure = secure))
 
 
+    // An executor passed in by the caller may still be used elsewhere, so stop() only shuts down its own
+    private val ownsExecutor = executorService == null
+
+    private val executorService: ExecutorService = executorService ?: createExecutor(httpServerOptions.maxConcurrentConnections)
+
     private lateinit var serverSocket: ServerSocket
 
+    @Volatile
     private var isRunning = false
 
     private val start = CountDownLatch(1)
 
+    @Volatile
     private var hasStarted = false
 
-    private val openConnections = ArrayList<ClientConnection>(httpServerOptions.maxConcurrentConnections)
+    // Changed by every connection's thread
+    private val openConnections: MutableSet<ClientConnection> = ConcurrentHashMap.newKeySet()
 
     private val numberOfConnections: AtomicInteger = AtomicInteger(0)
 
@@ -141,8 +154,13 @@ class HttpServer(
     }
 
     private fun handleNewSocket(socket: Socket) {
-        executorService.submit {
-            handleSocket(socket)
+        try {
+            executorService.submit {
+                handleSocket(socket)
+            }
+        } catch (e: RejectedExecutionException) {
+            // The server was stopped after it accepted the socket
+            socket.close()
         }
     }
 
@@ -152,17 +170,22 @@ class HttpServer(
         val clientConnection = ClientConnection(socket, connectionOptions)
         openConnections.add(clientConnection)
         try {
-            var connectionOpen = true;
-            while (connectionOpen) {
+            while (true) {
                 //Todo: Handle any errors that might occur during requests
-                val httpRequest = HttpRequestHandler().handleRequest(clientConnection.io)
+                val httpRequest = HttpRequestHandler().handleRequest(clientConnection.io, httpServerOptions.secure)
 
-                connectionOpen = !httpRequest.headers.hasConnection(Connection.CLOSE)
-
-                respond(httpRequest, clientConnection)
+                val connectionOpen = respond(httpRequest, clientConnection)
+                if (!connectionOpen)
+                    break
 
                 // The next request starts after this request's body, also if the handler didn't read it
-                httpRequest.body.discardRemaining()
+                try {
+                    httpRequest.body.discardRemaining()
+                } catch (e: Exception) {
+                    // The response was already sent, so an invalid body can only be answered by closing the connection
+                    log.warn { "Could not read the rest of the request body: ${e.message}" }
+                    break
+                }
             }
         } catch (e: EndOfStream) {
             log.debug { "End of Stream" }
@@ -198,8 +221,9 @@ class HttpServer(
             body = exception.message ?: "No message"
         )
 
+        // An unrecognized method is answered with 501 https://www.rfc-editor.org/rfc/rfc9110#section-9.1
         is UnknownHttpMethod -> HttpResponse.fromStatus(
-            HttpStatus.METHOD_NOT_ALLOWED,
+            HttpStatus.NOT_IMPLEMENTED,
             body = exception.message ?: "No message"
         )
 
@@ -208,30 +232,34 @@ class HttpServer(
             body = exception.message ?: "No message"
         )
 
-        // A body length that can't be determined must be answered with 400 https://www.rfc-editor.org/rfc/rfc9112#section-6.3
-        is InvalidContentLength,
-        is InvalidTransferEncoding,
-        is HeaderNameEndsWithWhiteSpace,
-        is InvalidHttpRequestLine,
-        is HeaderStartsWithWhiteSpace,
-        is InvalidHeaderStructure,
-        is MissingHostHeader,
-        is TooManyHostHeaders,
+        is HttpVersionNotSupported -> HttpResponse.fromStatus(
+            HttpStatus.HTTP_VERSION_NOT_SUPPORTED,
+            body = exception.message ?: "No message"
+        )
+
+        // https://www.rfc-editor.org/rfc/rfc9110#section-15.5.16
+        is UnknownContentEncoding,
+        is UnsupportedContentEncoding -> HttpResponse.fromStatus(
+            HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+            body = exception.message ?: "No message"
+        )
+
+        // Every other malformed request, for example a body length that can't be determined, is answered with 400
+        // https://www.rfc-editor.org/rfc/rfc9112#section-6.3
+        is InvalidHttpRequest,
         is InvalidUpgrade ->
             HttpResponse.badRequest(body = exception.message ?: "No message")
 
+        // The exception message may contain details the client shouldn't see; it is logged instead in respondWithError
         else ->
-            HttpResponse.internalError(body = exception.message ?: "No message")
+            HttpResponse.internalError(body = "Internal Server Error")
     }
 
-    private fun respond(httpRequest: HttpRequest, clientConnection: ClientConnection) {
-
-
-        //Todo: If major version is not supported by this server
-        // Answer with A server can send a 505
-        //   (HTTP Version Not Supported) response if it wishes, for any reason,
-        //   to refuse service of the client's major protocol version.
-        // https://www.rfc-editor.org/rfc/rfc7230#page-14
+    /**
+     * Runs the handler for the request.
+     * @return Whether the connection stays open for the next request
+     */
+    private fun respond(httpRequest: HttpRequest, clientConnection: ClientConnection): Boolean {
         val httpRequestHandler = httpHandlers.getHandlerForRequest(httpRequest) ?: NOT_FOUND_HANDLER()
         val httpExchange = HttpExchange(httpRequest, createDefaultResponseHeaders(httpRequest), clientConnection.io)
         try {
@@ -239,10 +267,32 @@ class HttpServer(
             // Ends a response the handler started with write, or sends one if the handler sent nothing
             httpExchange.close()
         } catch (e: Exception) {
+            // An error response now would be read as part of the started one. Closing the connection
+            // leaves that response incomplete, which tells the client that it failed https://www.rfc-editor.org/rfc/rfc9112#section-8
+            if (httpExchange.hasStartedResponse) {
+                log.error(e) { "Handler failed after its response was started" }
+                return false
+            }
             respondWithError(clientConnection, e)
         }
 
+        // After a 101 the connection no longer speaks HTTP/1.1 https://www.rfc-editor.org/rfc/rfc9110#section-15.2.2
+        if (httpExchange.switchedProtocols)
+            return false
+        // A server that sends "close" must close the connection after the response https://www.rfc-editor.org/rfc/rfc9112#section-9.6
+        return isPersistent(httpRequest) && !httpExchange.closesConnection
+    }
 
+    /**
+     * Whether the client keeps the connection open after the response https://www.rfc-editor.org/rfc/rfc9112#section-9.3
+     */
+    private fun isPersistent(request: HttpRequest): Boolean {
+        if (request.headers.hasConnection(Connection.CLOSE))
+            return false
+        // HTTP/1.1 persists by default, HTTP/1.0 only with keep-alive
+        if (request.httpVersion.minorVersion >= 1)
+            return true
+        return request.headers.hasConnection(Connection.KEEP_ALIVE)
     }
 
 
@@ -250,13 +300,14 @@ class HttpServer(
         isRunning = false
         hasStarted = false
         start.countDown()
-        executorService.shutdown()
+        // Closed first, so that no connection is accepted after the executor is shut down
+        if (::serverSocket.isInitialized)
+            serverSocket.close()
+        if (ownsExecutor)
+            executorService.shutdown()
         openConnections.toList().forEach { it.close() }
         openConnections.clear()
         numberOfConnections.set(0)
-        if (::serverSocket.isInitialized)
-            serverSocket.close()
-
     }
 
     fun createDefaultResponseHeaders(
@@ -266,6 +317,14 @@ class HttpServer(
         return headers.also {
             it.withServer("Kttp")
             it.withDate()
+            if (request != null) {
+                // https://www.rfc-editor.org/rfc/rfc9112#section-9.6
+                if (!isPersistent(request))
+                    it.withConnection(Connection.CLOSE)
+                // An HTTP/1.0 client only keeps the connection if the response has keep-alive https://www.rfc-editor.org/rfc/rfc9112#appendix-C.2.2
+                else if (request.httpVersion.minorVersion == 0)
+                    it.withConnection(Connection.KEEP_ALIVE)
+            }
             if (httpServerOptions.transferOptions.shouldAlwaysCompress && request != null) {
                 if (request.headers.acceptsEncoding(ContentEncoding.GZIP))
                     it.withContentEncoding(ContentEncoding.GZIP)
@@ -280,6 +339,13 @@ class HttpServer(
             "https://${getHost()}"
         else
             "http://${getHost()}"
+    }
+
+    private fun createExecutor(maxConcurrentConnections: Int): ExecutorService {
+        // -1 stands for unlimited
+        if (maxConcurrentConnections == -1)
+            return Executors.newCachedThreadPool()
+        return Executors.newFixedThreadPool(maxConcurrentConnections)
     }
 
     fun getHost(): String {

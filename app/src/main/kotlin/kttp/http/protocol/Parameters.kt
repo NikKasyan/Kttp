@@ -18,12 +18,18 @@ class Parameters(private val parameters: MutableMap<String, MutableList<String>>
             return parameters
         }
     }
+    /**
+     * @param query The query as it is sent, still percent-encoded (for example [java.net.URI.getRawQuery]).
+     * Decoding it before splitting would turn an encoded "&" or "=" into a separator.
+     */
     fun addFromQuery(query: String?) {
         if (query == null)
             return
-        query.split("&").forEach {
-            val (key, value) = it.split("=")
-            this[key] = URIUtil.decodeURI(value)
+        query.split("&").filter { it.isNotEmpty() }.forEach {
+            // A parameter without "=", such as "?flag", has an empty value
+            val key = it.substringBefore("=")
+            val value = it.substringAfter("=", "")
+            this[URIUtil.decodeURI(key)] = URIUtil.decodeURI(value)
         }
     }
 

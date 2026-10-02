@@ -10,9 +10,16 @@ private val log: Logger = Logger(HttpRequestHandler::class.java)
 
 class HttpRequestHandler {
 
-    fun handleRequest(io: IOStream): HttpRequest {
+    /**
+     * @param secure Whether the connection uses TLS
+     */
+    fun handleRequest(io: IOStream, secure: Boolean = false): HttpRequest {
 
         val requestLine = readRequestLine(io)
+
+        // Only HTTP/1.x is implemented https://www.rfc-editor.org/rfc/rfc9110#section-15.6.6
+        if (requestLine.httpVersion.majorVersion != 1)
+            throw HttpVersionNotSupported(requestLine.httpVersion)
 
         val headers = readHeaders(io)
 
@@ -21,7 +28,7 @@ class HttpRequestHandler {
 
         val body = readBody(io, headers)
 
-        return HttpRequest(requestLine, headers, body)
+        return HttpRequest(requestLine, headers, body, secure)
     }
 
     private fun readRequestLine(io: IOStream): RequestLine {

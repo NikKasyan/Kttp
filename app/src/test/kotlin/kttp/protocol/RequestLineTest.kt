@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.net.URI
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class RequestLineTest {
 
@@ -79,6 +80,61 @@ class RequestLineTest {
         val httpRequest = RequestLine("GET /asd?param1=${URIUtil.encodeURI(parameter)} $httpVersion")
         assertEquals(httpRequest.parameters.size, 1)
         assertEquals(httpRequest.parameters["param1"], parameter)
+    }
+
+    @Test
+    fun encodedSeparatorsInQuery_areDecodedOnce(){
+        val httpRequest = RequestLine("GET /?a=%26b&c=%2525 $httpVersion")
+        assertEquals("&b", httpRequest.parameters["a"])
+        assertEquals("%25", httpRequest.parameters["c"])
+    }
+
+    @Test
+    fun queryParameterWithoutValue_hasEmptyValue(){
+        val httpRequest = RequestLine("GET /?flag $httpVersion")
+        assertEquals("", httpRequest.parameters["flag"])
+    }
+
+    @Test
+    fun encodedPath_isSentEncoded(){
+        val requestLine = RequestLine(Method.GET, URI("/a%20b"))
+        assertEquals("GET /a%20b $httpVersion\r\n", requestLine.toString())
+    }
+
+    @Test
+    fun plusInAbsolutePath_isNotDecodedToSpace(){
+        assertEquals("/a+b", RequestLine("GET http://example.com/a+b $httpVersion").uri.path)
+    }
+
+    @Test
+    fun dotSegmentsInAbsolutePath_areRemoved(){
+        assertEquals("/a/c/d", RequestLine("GET http://example.com/a/b/../c/./d $httpVersion").uri.path)
+        assertEquals("/a/", RequestLine("GET http://example.com/a/b/.. $httpVersion").uri.path)
+    }
+
+    @Test
+    fun asteriskForm_isAcceptedForOptions(){
+        val requestLine = RequestLine("OPTIONS * $httpVersion")
+        assertTrue(requestLine.isAsteriskForm)
+        assertEquals("OPTIONS * $httpVersion\r\n", requestLine.toString())
+    }
+
+    @Test
+    fun asteriskForm_isRejectedForOtherMethods(){
+        assertThrows<InvalidHttpRequestPath> { RequestLine("GET * $httpVersion") }
+    }
+
+    @Test
+    fun authorityForm_isAcceptedForConnect(){
+        val requestLine = RequestLine("CONNECT example.com:443 $httpVersion")
+        assertTrue(requestLine.isAuthorityForm)
+        assertEquals("CONNECT example.com:443 $httpVersion\r\n", requestLine.toString())
+    }
+
+    @Test
+    fun connectWithoutAuthorityForm_isInvalid(){
+        assertThrows<InvalidHttpRequestPath> { RequestLine("CONNECT example.com $httpVersion") }
+        assertThrows<InvalidHttpRequestPath> { RequestLine("CONNECT /path $httpVersion") }
     }
 
 }

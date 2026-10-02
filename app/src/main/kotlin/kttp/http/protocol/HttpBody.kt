@@ -185,7 +185,7 @@ private fun wrapWithTransferEncoding(
     for (transferEncoding in transferEncodings) {
         currentBody = when (transferEncoding) {
             TransferEncoding.CHUNKED -> ChunkingInputStream(currentBody, httpHeaders)
-            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Request not implemented")
+            else -> throw IllegalArgumentException("Transfer-Encoding $transferEncoding can't be sent")
         }
     }
     return HttpBody(currentBody, httpHeaders.contentLength)
@@ -200,7 +200,8 @@ private fun wrapWithTransferDecoding(
     for (transferEncoding in transferEncodings) {
         currentBody = when (transferEncoding) {
             TransferEncoding.CHUNKED -> ChunkedInputStream(currentBody, httpHeaders)
-            else -> throw NotImplementedError("Transfer-Encoding $transferEncoding for Request not implemented")
+            // A transfer coding the server does not understand is answered with 501 https://www.rfc-editor.org/rfc/rfc9112#section-6.1
+            else -> throw UnknownTransferEncoding(transferEncoding.value)
         }
     }
     return currentBody
@@ -213,8 +214,7 @@ private fun wrapWithContentDecoding(
     return when (contentEncoding) {
         ContentEncoding.GZIP -> GZIPInputStream(body)
         ContentEncoding.DEFLATE -> InflaterInputStream(body)
-        ContentEncoding.BR -> throw NotImplementedError("Brotli encoding not implemented")
-        else -> body
+        else -> throw UnsupportedContentEncoding(contentEncoding.value)
     }
 }
 
@@ -226,8 +226,11 @@ private fun wrapWithContentEncoding(
     currentBody = when (contentEncoding) {
         ContentEncoding.GZIP -> GZIPingInputStream(currentBody)
         ContentEncoding.DEFLATE -> DeflaterInputStream(currentBody)
-        ContentEncoding.BR -> throw NotImplementedError("Brotli encoding not implemented")
-        else -> currentBody
+        else -> throw IllegalArgumentException("Content-Encoding $contentEncoding can't be sent")
     }
     return HttpBody(currentBody)
 }
+
+// A request whose content coding the server can't decode is answered with 415 https://www.rfc-editor.org/rfc/rfc9110#section-15.5.16
+class UnsupportedContentEncoding(contentEncoding: String) :
+    InvalidHttpRequest("Unsupported Content Encoding: $contentEncoding")

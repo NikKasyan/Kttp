@@ -39,7 +39,13 @@ fun hostFiles(relativePath: String, requestBase: String = "") = hostFiles(Path.o
 fun hostFiles(path: Path, requestBase: String = ""): OnHttpRequest {
     return Handler@{
         val requestedPath = request.uri.path.removePrefix(requestBase)
-        val file = resolvePath(path, requestedPath).toFile()
+        val resolved = try {
+            resolvePath(path, requestedPath)
+        } catch (e: IllegalArgumentException) {
+            respond(HttpResponse.notFound(body = "Not Found $requestedPath"))
+            return@Handler
+        }
+        val file = resolved.toFile()
         if (file.exists()) {
             if (file.isDirectory) {
                 val files = file.list() ?: arrayOf()
@@ -61,6 +67,9 @@ fun hostFiles(path: Path, requestBase: String = ""): OnHttpRequest {
 fun resolvePath(path: Path, requestedPath: String): Path {
     if(requestedPath.isEmpty() || requestedPath == "/")
         return path
-    return path.resolve(requestedPath.removePrefix("/"))
-
+    // Reject paths that escape the root, such as "../" segments or an absolute path https://www.rfc-editor.org/rfc/rfc3986#section-5.2.4
+    val resolved = path.resolve(requestedPath.removePrefix("/")).normalize()
+    if (!resolved.startsWith(path))
+        throw IllegalArgumentException("Requested path escapes the root: $requestedPath")
+    return resolved
 }

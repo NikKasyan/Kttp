@@ -14,15 +14,34 @@ object URIUtil {
      * https://www.rfc-editor.org/rfc/rfc3986#section-6.2.3
      */
     fun normalizeURI(uri: URI): URI {
-        return URI(
-            uri.scheme.lowercase(), // https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3-4.3
-            null, // Shouldn't be set
-            uri.host.lowercase(), // https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3-4.3
-            getPortByScheme(uri.scheme!!, uri.port),
-            urlDecode(normalizePath(uri.path)),
-            urlDecode(uri.query),
-            urlDecode(uri.fragment)
-        )
+        val scheme = uri.scheme.lowercase() // https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3-4.3
+        val host = uri.host.lowercase() // https://www.rfc-editor.org/rfc/rfc9110#section-4.2.3-4.3
+        val port = getPortByScheme(scheme, uri.port)
+        val authority = if (port == -1) host else "$host:$port"
+        // The raw components are kept percent-encoded, decoding them would turn "%2F" into "/" or "%26" into "&"
+        val path = removeDotSegments(normalizePath(uri.rawPath))
+        val query = if (uri.rawQuery == null) "" else "?${uri.rawQuery}"
+        val fragment = if (uri.rawFragment == null) "" else "#${uri.rawFragment}"
+        return URI("$scheme://$authority$path$query$fragment")
+    }
+
+    /**
+     * Removes "." and ".." segments from an absolute path https://www.rfc-editor.org/rfc/rfc3986#section-5.2.4
+     */
+    fun removeDotSegments(path: String): String {
+        val segments = path.split("/").drop(1) // The path starts with "/", so the first part is empty
+        val output = ArrayDeque<String>()
+        for (segment in segments) {
+            when (segment) {
+                "." -> {}
+                ".." -> output.removeLastOrNull()
+                else -> output.addLast(segment)
+            }
+        }
+        // "/a/b/.." becomes "/a/", the path still ends with a "/"
+        if (segments.last() == "." || segments.last() == "..")
+            output.addLast("")
+        return "/" + output.joinToString("/")
     }
 
     fun getPortByScheme(scheme: String, port: Int): Int {
@@ -42,6 +61,33 @@ object URIUtil {
     }
 
     fun urlDecode(string: String?) = if (string != null) URLDecoder.decode(string, Charsets.UTF_8) else null
+
+    /**
+     * Parses the request-target in the form the method allows https://www.rfc-editor.org/rfc/rfc9112#section-3.2
+     */
+    fun parseRequestTarget(method: Method, target: String): URI {
+        // Only CONNECT uses authority-form, and it uses nothing else https://www.rfc-editor.org/rfc/rfc9112#section-3.2.3
+        if (method == Method.CONNECT)
+            return parseAuthorityForm(target)
+        // Asterisk-form is only used with OPTIONS https://www.rfc-editor.org/rfc/rfc9112#section-3.2.4
+        if (method == Method.OPTIONS && target == ASTERISK_FORM)
+            return URI(ASTERISK_FORM)
+        return parseURI(target)
+    }
+
+    const val ASTERISK_FORM = "*"
+
+    // authority-form = uri-host ":" port https://www.rfc-editor.org/rfc/rfc9112#section-3.2.3
+    private fun parseAuthorityForm(target: String): URI {
+        val uri = try {
+            URI("//$target").parseServerAuthority()
+        } catch (e: URISyntaxException) {
+            throw InvalidHttpRequestPath("Invalid authority $target")
+        }
+        if (uri.host == null || uri.port == -1 || uri.rawUserInfo != null || uri.rawPath.isNotEmpty() || uri.rawQuery != null)
+            throw InvalidHttpRequestPath("Invalid authority $target")
+        return uri
+    }
 
     //Todo: Implement rest of https://www.rfc-editor.org/rfc/rfc7230#section-5.3
     fun parseURI(path: String): URI {
@@ -65,7 +111,8 @@ object URIUtil {
     private fun checkAbsoluteUri(uri: URI) {
         if (uri.scheme != "http" && uri.scheme != "https")
             throw InvalidHttpRequestPath("Absolute Request uri may only have scheme http or https")
-        if (uri.host.isEmpty())
+        // host is null when the authority isn't a valid host and port, for example "example.com:abc"
+        if (uri.host.isNullOrEmpty())
             throw InvalidHttpRequestPath("Host of absolute URI may not be empty")
 
     }

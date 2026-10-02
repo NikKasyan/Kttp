@@ -52,13 +52,13 @@ object SSL {
             )
             keyStore.setKeyEntry(keyStoreOptions.keyPairAlias, keyPair.private, keyStorePassword, arrayOf(cert))
             if (keyStoreOptions.createIfNotExists)
-                keyStore.store(keyStoreFile.outputStream(), keyStorePassword).also {
+                keyStoreFile.outputStream().use { keyStore.store(it, keyStorePassword) }.also {
                     log.debug { "KeyStore created at ${keyStoreFile.absolutePath}" }
                 }
 
         }
         if (keyStoreFile.exists())
-            keyStore.load(keyStoreFile.inputStream(), keyStorePassword).also {
+            keyStoreFile.inputStream().use { keyStore.load(it, keyStorePassword) }.also {
                 log.debug { "KeyStore loaded from ${keyStoreFile.absolutePath}" }
             }
 
@@ -108,10 +108,11 @@ object SSL {
         val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
         keyStore.load(null, null)
         val certificateFactory = CertificateFactory.getInstance("X.509")
-        val certificates = certificateChainStreams.map { certificateFactory.generateCertificate(it) as X509Certificate }
-        val privateKeyBytes = keyStream.readAllBytes()
+        val certificates = certificateChainStreams.map { it.use { stream -> certificateFactory.generateCertificate(stream) as X509Certificate } }
+        val privateKeyBytes = keyStream.use { it.readAllBytes() }
         val privateKeyString = String(privateKeyBytes).replace("-----BEGIN PRIVATE KEY-----", "")
             .replace("-----END PRIVATE KEY-----", "")
+            .replace("\r", "")
             .replace("\n", "")
         val decoded = Base64.getDecoder().decode(privateKeyString)
         val keySpec = PKCS8EncodedKeySpec(decoded)

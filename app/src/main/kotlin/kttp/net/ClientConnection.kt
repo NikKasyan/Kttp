@@ -11,7 +11,8 @@ class ClientConnection(private val socket: Socket, options: ConnectionOptions = 
     private var wasClosedManually: Boolean = false
     val io = IOStream(socket.getInputStream(), socket.getOutputStream(), options.charset, options.maxLineLengthInBytes)
     init {
-        socket.soTimeout = options.timeout.toMillis().toInt()
+        // A negative timeout stands for unlimited, which soTimeout expresses as 0
+        socket.soTimeout = if (options.timeout.isNegative) 0 else options.timeout.toMillis().toInt()
     }
 
     private val isClosed

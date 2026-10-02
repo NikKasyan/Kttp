@@ -55,4 +55,6 @@ class HttpVersion {
 
 class InvalidHttpVersion(msg: String) : InvalidHttpRequest(msg)
 
+class HttpVersionNotSupported(version: HttpVersion) : InvalidHttpRequest("$version is not supported")
+
 

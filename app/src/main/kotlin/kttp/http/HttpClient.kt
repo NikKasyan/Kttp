@@ -12,7 +12,7 @@ import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLSocket
 
 // Not Thread Safe
-class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
+class HttpClient(baseURL: String, private val verifyCertificate: Boolean = true) {
 
     private val baseURI: URI
     private val isSecure: Boolean
@@ -84,7 +84,11 @@ class HttpClient(baseURL: String, verifyCertificate: Boolean = true) {
 
         if (isSecure) {
             try {
-                (socket as SSLSocket).startHandshake()
+                socket as SSLSocket
+                // Verify the certificate belongs to the host being contacted https://www.rfc-editor.org/rfc/rfc9110#section-4.3.4
+                if (verifyCertificate)
+                    socket.sslParameters = socket.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+                socket.startHandshake()
             } catch (e: SSLHandshakeException) {
                 log.error { "Handshake failed: ${e.message}" }
                 if (e.message?.contains("PKIX path building failed") == true) {

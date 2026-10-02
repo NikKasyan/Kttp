@@ -7,6 +7,7 @@ import java.io.Closeable
 import java.io.InputStream
 import java.net.Socket
 import java.net.URI
+import javax.net.ssl.SSLSocket
 
 typealias InitialWebSocketEventsSetter = WebsocketEvents.() -> Unit
 
@@ -27,7 +28,11 @@ class Websocket(private val connection: HttpClientConnection, initializeEvents: 
             val secure = uri.scheme == "wss"
             val port = uri.port.takeIf { it != -1 } ?: if (secure) 443 else 80
             val socket = if (secure) {
-                SSL.getSecureSocketFactory(verifyCertificates).createSocket(uri.host, port)
+                val sslSocket = SSL.getSecureSocketFactory(verifyCertificates).createSocket(uri.host, port) as SSLSocket
+                // Verify the certificate belongs to the host being contacted https://www.rfc-editor.org/rfc/rfc9110#section-4.3.4
+                if (verifyCertificates)
+                    sslSocket.sslParameters = sslSocket.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+                sslSocket
             } else {
                 Socket(uri.host, port)
             }

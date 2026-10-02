@@ -13,7 +13,7 @@ data class HttpServerOptions(
     val socketTimeout: Duration = Duration.ofSeconds(30), // -1 for unlimited
     val hostName: String = "127.0.0.1",
     val httpVersion: HttpVersion = HttpVersion.DEFAULT_VERSION,
-    val tlsOptions: TLSOptions = TLSOptions.DEFAULT,
+    val tlsOptions: TLSOptions = if (secure) TLSOptions.DEFAULT else TLSOptions(SSLContext.getInstance("TLS")),
     val maxConcurrentConnections: Int = 20, // -1 for unlimited
     val socketFactory: ServerSocketFactory = if(secure) tlsOptions.createSocketFactory() else ServerSocketFactory.getDefault(),
     val transferOptions: TransferOptions = TransferOptions.DEFAULT,
@@ -35,7 +35,8 @@ data class TLSOptions(
 
     ) {
     companion object {
-        val DEFAULT = TLSOptions()
+        // Lazy so a plain HTTP server doesn't generate a keystore it will never use
+        val DEFAULT by lazy { TLSOptions() }
 
        }
 

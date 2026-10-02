@@ -1,12 +1,19 @@
 package kttp
 
 import kttp.http.server.HttpServer
+import kttp.http.server.HttpServerOptions
 import kttp.net.ClientConnection
+import kttp.net.ConnectionOptions
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.net.ConnectException
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.net.Socket
+import java.time.Duration
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
@@ -73,6 +80,31 @@ class HttpServerConnectionTest {
         Thread.sleep(200)
         assertEquals(20, httpServer.activeConnections)
 
+    }
+
+    @Test
+    fun stop_doesNotShutDownGivenExecutor() {
+        val executor = Executors.newSingleThreadExecutor()
+        HttpServer(executorService = executor).stop()
+
+        assertFalse(executor.isShutdown)
+        executor.shutdown()
+    }
+
+    @Test
+    fun unlimitedConnections_canBeConfigured() {
+        HttpServer(HttpServerOptions(maxConcurrentConnections = -1)).stop()
+    }
+
+    @Test
+    fun negativeSocketTimeout_meansNoTimeout() {
+        ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { serverSocket ->
+            Socket(InetAddress.getLoopbackAddress(), serverSocket.localPort).use { socket ->
+                ClientConnection(socket, ConnectionOptions(timeout = Duration.ofSeconds(-1)))
+
+                assertEquals(0, socket.soTimeout)
+            }
+        }
     }
 
     @AfterEach

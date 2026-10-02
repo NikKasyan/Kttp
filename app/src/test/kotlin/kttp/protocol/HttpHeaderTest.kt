@@ -48,6 +48,15 @@ class HttpHeaderTest {
     }
 
     @Test
+    fun headerValueWithCrlfIsRejectedByEverySetter() {
+        val headers = HttpHeaders()
+        assertThrows<InvalidHeaderStructure> { headers["X-Test"] = "value\r\nInjected: header" }
+        assertThrows<InvalidHeaderStructure> { headers.withHost("localhost\r\nInjected: header") }
+        assertThrows<InvalidHeaderStructure> { headers.add(HttpHeader("X-Test" to "value\nInjected: header")) }
+        assertThrows<InvalidHeaderStructure> { headers["X-Test"] = "value\u0000" }
+    }
+
+    @Test
     fun transferEncodingChunked_shouldBeParsedCorrectly(){
         val headers = HttpHeaders(listOf(HttpHeader("Transfer-Encoding" to "chunked")))
         assertEquals(headers.transferEncoding, TransferEncoding.CHUNKED)

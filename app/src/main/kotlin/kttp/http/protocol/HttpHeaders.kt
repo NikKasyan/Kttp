@@ -256,6 +256,16 @@ fun checkHeaderNotContainsBareCR(header: HttpHeader) {
         throw InvalidHeaderStructure("Header value may not contain a bare CR")
 }
 
+// Field values must not contain CR, LF or NUL https://www.rfc-editor.org/rfc/rfc9110#section-5.5
+private fun checkFieldLineIsValid(name: String, value: String) {
+    if (containsCrLfOrNul(name))
+        throw InvalidHeaderStructure("Header key may not contain CR, LF or NUL")
+    if (containsCrLfOrNul(value))
+        throw InvalidHeaderStructure("Header value may not contain CR, LF or NUL")
+}
+
+private fun containsCrLfOrNul(s: String): Boolean = s.any { it == '\r' || it == '\n' || it == '\u0000' }
+
 /**
  * Stores the field lines of a header section.
  * Field names are case-insensitive https://www.rfc-editor.org/rfc/rfc9110#section-5.1
@@ -272,10 +282,12 @@ private class FieldLines {
     operator fun get(name: String): String? = fields[name.lowercase()]?.values?.joinToString(", ")
 
     operator fun set(name: String, value: String) {
+        checkFieldLineIsValid(name, value)
         fields[name.lowercase()] = Field(name, mutableListOf(value))
     }
 
     fun add(name: String, value: String) {
+        checkFieldLineIsValid(name, value)
         fields.getOrPut(name.lowercase()) { Field(name, mutableListOf()) }.values.add(value)
     }
 
@@ -1130,6 +1142,8 @@ class HeaderNameEndsWithWhiteSpace : InvalidHeader("Header may not end with a wh
 class HeaderStartsWithWhiteSpace : InvalidHeader("Header may not start with a whitespace")
 
 class TooManyHostHeaders : InvalidHeader("May not contain multiple Host Fields")
+
+class InvalidHost(host: String) : InvalidHeader("Invalid Host: $host")
 
 class UnknownTransferEncoding(transferEncoding: String) :
     InvalidHeader("Unknown Transfer Encoding: $transferEncoding")

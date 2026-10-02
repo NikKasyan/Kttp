@@ -5,11 +5,16 @@ import kttp.io.CombinedInputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.URI
+import java.net.URISyntaxException
 
+/**
+ * @param secure Whether the request was received over TLS. The target URI then has the scheme "https".
+ */
 class HttpRequest(
     private val requestLine: RequestLine,
     val headers: HttpHeaders = HttpHeaders(),
     val body: HttpBody,
+    secure: Boolean = false,
 ) {
 
     val httpVersion
@@ -26,7 +31,7 @@ class HttpRequest(
             throw InvalidTransferEncoding("TE may not be set to chunked in a request as the server should always support it")
 
 
-        uri = combineToRequestUri(headers.host(), requestLine.uri)
+        uri = reconstructTargetUri(parseHost(headers.host()), secure)
     }
     companion object {
         fun from(method: Method, uri: URI, httpHeaders: HttpHeaders = HttpHeaders(), body: HttpBody): HttpRequest {
@@ -67,22 +72,35 @@ class HttpRequest(
         }
     }
 
-    private fun combineToRequestUri(host: String, requestTarget: URI): URI {
-        val port = if(host.contains(":"))
-            host.substringAfter(":").toInt()
-        else
-            -1
+    // A Host with an invalid value must be answered with 400 https://www.rfc-editor.org/rfc/rfc9112#section-3.2
+    private fun parseHost(host: String): URI {
+        val hostUri = try {
+            URI("http://$host").parseServerAuthority()
+        } catch (e: URISyntaxException) {
+            throw InvalidHost(host)
+        }
+        // Host = uri-host [ ":" port ] https://www.rfc-editor.org/rfc/rfc9110#section-7.2
+        if (hostUri.host == null || hostUri.rawUserInfo != null || hostUri.rawPath.isNotEmpty()
+            || hostUri.rawQuery != null || hostUri.rawFragment != null)
+            throw InvalidHost(host)
+        return hostUri
+    }
 
-        val hostWithNoPort = host.substringBefore(":")
-        return URI(
-            "http",
-            null,
-            hostWithNoPort,
-            port,
-            requestTarget.path,
-            requestTarget.query,
-            requestTarget.fragment
-        )
+    /**
+     * Builds the target URI from the request-target and the Host https://www.rfc-editor.org/rfc/rfc9112#section-3.3
+     */
+    private fun reconstructTargetUri(host: URI, secure: Boolean): URI {
+        val target = requestLine.uri
+        // For absolute-form the target URI is the request-target, and Host is ignored https://www.rfc-editor.org/rfc/rfc9112#section-3.2.2
+        if (target.isAbsolute)
+            return target
+        val scheme = if (secure) "https" else "http"
+        val authority = if (requestLine.isAuthorityForm) target.rawAuthority else host.rawAuthority
+        // Authority-form and asterisk-form have an empty path and query
+        if (requestLine.isAuthorityForm || requestLine.isAsteriskForm)
+            return URI("$scheme://$authority")
+        val query = if (target.rawQuery == null) "" else "?${target.rawQuery}"
+        return URIUtil.normalizeURI(URI("$scheme://$authority${target.rawPath}$query"))
     }
 
     override fun toString(): String {
@@ -98,7 +116,7 @@ class HttpRequest(
     }
 
     fun getParameters(): Parameters {
-        return Parameters.fromQuery(uri.query)
+        return Parameters.fromQuery(uri.rawQuery)
     }
 }
 
